@@ -1,0 +1,132 @@
+let express = require("express");
+let router = express.Router();
+const signinController = require("../controllers/signinController");
+const userDataController = require("../controllers/userDataController");
+const adminController = require("../controllers/adminController");
+const profileController = require("../controllers/profileController");
+const viewprofileController = require("../controllers/viewprofileController");
+const chatController = require("../controllers/chatController");
+const galleryController = require("../controllers/galleryController");
+const indexController = require("../controllers/indexController");
+const reportController = require("../controllers/reportController");
+const cmsController = require("../controllers/cmsController");
+const orderController = require("../controllers/orderController");
+const artistDashboardController = require("../controllers/artistDashboardController");
+
+const auth = require("../middleware/auth");
+
+//test
+router.get("/user", signinController.user);
+
+//ยังไม่มี token signinController
+router.post("/verify", signinController.verify);
+router.post("/verify/email", signinController.verify_email);
+router.post("/register", signinController.register);
+router.post("/login", signinController.login);
+router.post("/forgot-password", signinController.forgotPassword);
+router.post("/check_otp", signinController.check_otp); 
+router.put("/reset-password", signinController.resetPassword);
+
+//userDataController
+router.get("/index", auth.verifyToken, userDataController.index);
+router.get("/myCommission", auth.verifyToken, userDataController.myCommission);
+
+//profileController
+router.get("/profile", auth.verifyToken, auth.user_artisOnly, profileController.profile);
+router.post("/openFollower", auth.verifyToken, profileController.openFollower)
+router.post("/openFollowing", auth.verifyToken, profileController.openFollowing)
+router.put('/profile/password/change', auth.verifyToken, profileController.changePassword)
+router.patch("/profile/update", auth.verifyToken, profileController.update_profile);
+router.patch("/cover_color/update", auth.verifyToken, profileController.update_cover_color);
+router.put("/profile_img/update", auth.verifyToken, profileController.update_profile_img);
+router.patch("/bank/update", auth.verifyToken, profileController.update_bank);
+router.put("/delete_account", auth.verifyToken, profileController.delete_account);
+
+//viewprofileController
+router.get("/profile/:id", auth.verifyToken, viewprofileController.viewProfile);
+router.post("/follow", auth.verifyToken, viewprofileController.follow);
+router.delete("/unfollow/:id", auth.verifyToken, viewprofileController.unfollow);
+
+//chat
+router.get("/index", auth.verifyToken, chatController.index);
+router.get("/chat/partner/:id", auth.verifyToken, chatController.chatPartner);
+router.get("/allchat/:id", chatController.allchat);
+router.post("/messages/getmsg", chatController.getMessages);
+router.post("/messages/addmsg", chatController.addMessages);
+
+//commission
+router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
+// router.patch("/commission/delete/:id", auth.verifyToken, commissionController.deleteCommission);
+
+//indexCommissionController
+// router.get("/userCommission/:id", auth.verifyToken, controller.userCommission);
+router.get("/latestCommission", cmsController.latestCommission);
+router.get("/artistCommission", auth.verifyToken, cmsController.artistCommission);
+// router.get("/popularCommission", auth.verifyToken, controller.popularCommission);
+router.get("/detailCommission/:id", cmsController.detailCommission);
+router.get("/queue/:id", cmsController.getQueue)
+router.get("/getQueueData/:id", cmsController.getQueueData)
+
+//galleryController
+router.get("/gallerry/select-cms", auth.verifyToken, galleryController.selectgallory)
+router.post("/gallerry/add", auth.verifyToken, galleryController.galloryAdd)
+router.patch("/gallerry/update/:id", galleryController.galloryUpdate)
+router.patch("/gallerry/delete/:id", galleryController.galloryDelete)
+
+router.get("/gallerry/all", galleryController.galloryAll)
+router.get("/gallerry/latest", galleryController.gallorylatest)
+router.get("/gallerry/detail/:id", galleryController.galloryDetail)
+router.get("/gallerry/Ifollow", auth.verifyToken, galleryController.galloryIfollow)
+router.get("/galleryIFollowArtist", galleryController.galleryIFollowArtist)
+
+//admin
+router.get("/admin", auth.verifyToken, auth.adminOnly, adminController.admin);
+router.get("/alluser", auth.verifyToken, auth.adminOnly, adminController.allUser);
+router.get("/alladmin", auth.verifyToken, auth.adminOnly, adminController.allAdmin);
+
+router.post("/alladmin/email/verify", adminController.adminVerifyEmail);
+router.post("/alladmin/otp/verify/", adminController.adminVerifyOTP);
+
+router.patch("/alladmin/add/:id", adminController.createAdmin);
+router.patch("/alladmin/edit/:id", adminController.editAdmin);
+router.patch("/alladmin/delete/:id", adminController.deleteAdmin);
+
+router.get("/allfaq", auth.verifyToken, auth.adminOnly, adminController.allfaq);
+router.post("/faq/add", auth.verifyToken, adminController.addfaq);
+router.patch("/faq/update/:id", adminController.updatefaq);
+router.patch("/faq/delete/:id", adminController.deletefaq);
+
+// router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
+// router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
+// router.patch("/commission/problem/approve/:id", adminController.problemCommissionApprove);
+// router.patch("/commission/problem/notapprove/:id", adminController.problemCommissionNotApprove);
+
+//artist-dashboard
+router.get("/getYearDataArtist", auth.verifyToken, artistDashboardController.getYearDataArtist);
+router.get("/getOutOfYearDataArtist", auth.verifyToken, artistDashboardController.getOutOfYearDataArtist);
+router.get("/getCountTopic", artistDashboardController.getCountTopic)
+
+//admin-dashboard
+router.get("/getYearData", adminController.getYearData);
+router.get("/getOutOfYearData", adminController.getOutOfYearData);
+router.get("/getdataPieChart", adminController.dataPieChart );
+
+//indexController
+router.post("/ArtistIndex", indexController.ArtistIndex);
+router.get("/allArtist", indexController.allArtist);
+router.get("/getAritisIFollow", indexController.ArtistIFollow);
+
+//reportController
+router.post("/send-report", reportController.sendReport);
+router.get("/allreport", reportController.allReport);
+router.get("/allApproveReport", reportController.allApproveReport);
+router.get("/allDeletedReport", reportController.allDeletedReport);
+
+//orderController
+router.post("/order/add", auth.verifyToken, orderController.user_addOrder);
+router.post("/messages/addmsg-order", orderController.addMessagesOrder);
+
+
+
+
+module.exports = router;
