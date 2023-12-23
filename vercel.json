@@ -1,0 +1,79 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": ".js",
+      "use": "@now/node"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/images/:slug*",
+      "destination": "/public/images/:slug*"
+    },
+    {
+      "source": "/images_cms/:slug*",
+      "destination": "/public/images_cms/:slug*"
+    },
+    {
+      "source": "/images_chat/:slug*",
+      "destination": "/public/images_chat/:slug*"
+    },
+    {
+      "source": "/images_admin/:slug*",
+      "destination": "/public/images_admin/:slug*"
+    },
+    {
+      "source": "/images_artwork/:slug*",
+      "destination": "/public/images_artwork/:slug*"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/routes/(.*)",
+      "dest": "/routes/router.js"
+    },
+    {
+      "src": "/public/images/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/public/images_cms/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/public/images_chat/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/public/images_admin/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "src": "/public/images_artwork/(.*)",
+      "headers": {
+        "Cache-Control": "public, max-age=31536000, immutable"
+      },
+      "continue": true
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
+    }
+  ]
+}
