@@ -15,104 +15,93 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.getYearDataArtist = (req, res) => {
     const userID = req.user.userId;
+    let startDate = req.query.startDate;
+    let endDate = req.query.endDate;
     let sql = `
         SELECT
-        DATE_FORMAT(created_at, '%Y-%m') AS date,
-        COUNT(*) AS follower
-        FROM follow
-        WHERE follower_id = ?
+            DATE_FORMAT(created_at, '%Y-%m') AS date,
+            COUNT(*) AS follower
+        FROM 
+            follow
+        WHERE 
+            following_id = ? AND created_at >= ? AND created_at <= ?
+        GROUP BY 
+            DATE_FORMAT(created_at, '%Y-%m');
     `;
-
-    if (req.query.startDate && req.query.endDate) {
-        sql += `
-          AND created_at >= ? 
-          AND created_at <= ?
-          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-          ORDER BY date ASC
-        `;
-    
-        let startDate = `${req.query.startDate} 00:00:00`;
-        let endDate = `${req.query.endDate} 23:59:59`;
-        // console.log(startDate);
-        // console.log(endDate);
-    
-        dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
-          if (error) {
-            console.log(error);
-            return res.status(500).json({ error: 'Error occurred' });
-          }
-        //   console.log(results);
-          return res.status(200).json({ results, message: 'Success' });
-        });
-    } else {
-        sql += `
-          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-          ORDER BY date ASC
-        `;
-    
-        dbConn.query(sql, [userID], (error, results) => {
-          if (error) {
-            console.log(error);
-            return res.status(500).json({ error: 'Error occurred' });
-          }
-        //   console.log(results);
-          return res.status(200).json({ results, message: 'Success' });
-        });
-    }
+    dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
+      if (error) {
+        return res.status(500).json({ error: 'Error occurred' });
+      }
+      return res.status(200).json({ results, message: 'Success' });
+    });
 };
 
 exports.getOutOfYearDataArtist = (req, res) => {
     const userID = req.user.userId;
+    let startDate = `${req.query.startDate} 00:00:00`;
+    let endDate = `${req.query.endDate} 23:59:59`;
     let sql = `
         SELECT
-        DATE_FORMAT(created_at, '%Y-%m') AS date,
+        DATE_FORMAT(created_at, '%Y-%m-%d') AS date,
         COUNT(*) AS follower
         FROM follow
-        WHERE follower_id = ?
+        WHERE following_id = ? AND created_at >= ? AND created_at <= ?
+        GROUP BY 
+            DATE_FORMAT(created_at, '%Y-%m-%d');
     `;
-    if (req.query.startDate && req.query.endDate) {
-        sql += `
-          AND created_at >= ? 
-          AND created_at <= ?
-          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-          ORDER BY date ASC
-        `;
+    dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
+      if (error) {
+        console.log(error);
+        return res.status(500).json({ error: 'Error occurred' });
+      }
+      // console.log(results);
+      return res.status(200).json({ results, message: 'Success' });
+    });
+
+    // if (req.query.startDate && req.query.endDate) {
+    //     sql += `
+    //       AND created_at >= ? 
+    //       AND created_at <= ?
+    //       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    //       ORDER BY date ASC
+    //     `;
     
-        let startDate = `${req.query.startDate} 00:00:00`;
-        let endDate = `${req.query.endDate} 23:59:59`;
+    //     let startDate = `${req.query.startDate} 00:00:00`;
+    //     let endDate = `${req.query.endDate} 23:59:59`;
     
-        dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
-          if (error) {
-            console.log(error);
-            return res.status(500).json({ error: 'Error occurred' });
-          }
-        //   console.log(results);
-          return res.status(200).json({ results, message: 'Success' });
-        });
-    } else {
-        sql += `
-          GROUP BY DATE_FORMAT(created_at, '%Y-%m')
-          ORDER BY date ASC
-        `;
+    //     dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
+    //       if (error) {
+    //         console.log(error);
+    //         return res.status(500).json({ error: 'Error occurred' });
+    //       }
+    //       console.log(results);
+    //       return res.status(200).json({ results, message: 'Success' });
+    //     });
+    // } else {
+    //     sql += `
+    //       GROUP BY DATE_FORMAT(created_at, '%Y-%m')
+    //       ORDER BY date ASC
+    //     `;
     
-        dbConn.query(sql, [userID], (error, results) => {
-          if (error) {
-            console.log(error);
-            return res.status(500).json({ error: 'Error occurred' });
-          }
-        //   console.log(results);
-          return res.status(200).json({ results, message: 'Success' });
-        });
-    }
+    //     dbConn.query(sql, [userID], (error, results) => {
+    //       if (error) {
+    //         console.log(error);
+    //         return res.status(500).json({ error: 'Error occurred' });
+    //       }
+    //       console.log(results);
+    //       return res.status(200).json({ results, message: 'Success' });
+    //     });
+    // }
 };
 
 exports.getCountTopic = (req, res) => {
   dbConn.query(`
-  SELECT * FROM topic 
+    SELECT * FROM topic 
   `,function(error, results){
     if (error) {
       return res.status(500).json({ status : 'error',})
     }
+    // console.log(results);
     return res.status(200).json({ status : 'ok', results})
   })
 };

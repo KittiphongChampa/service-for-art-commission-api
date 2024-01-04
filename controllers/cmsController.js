@@ -15,7 +15,6 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.addCommission = (req, res) => {
   // console.log(req.body);
-  console.log('เข้า');
     function insertCommission(data, userId) {
       return new Promise((resolve, reject) => {
         dbConn.query(
@@ -34,10 +33,36 @@ exports.addCommission = (req, res) => {
     }
   
     function insertPackage(data, step, commissionId, userId) {
+      // console.log('step',step);
+      // console.log('step',step.split(',').length);
+      const allWipArr = step.split(',')
+      const halfWip = Math.floor(allWipArr.length / 2) //หารครึี่งปัดเศษลงหลังจากสเตปนี้ต้องจ่ายสลิป2
+      let newAllSteps = ""
+      allWipArr.map((wip, index) => {
+        if (index == 0) {
+          newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,ภาพ"+wip+","
+        }
+        //ถ้าwip=50%
+        else if (index == halfWip - 1) {
+          newAllSteps += "ภาพ"+wip+",แนบสลิป2,ตรวจสอบใบเสร็จ2,"
+          // newAllSteps.push("แนบสลิป2","ตรวจสอบใบเสร็จ2",wip)
+        }
+          //ถ้าเป็นwipสุดท้าย
+        else if (index == allWipArr.length - 1) {
+          // newAllSteps.push(wip,"ภาพไฟนัล","แอดมินอนุมัติ","รีวิว")
+          newAllSteps += "ภาพ"+wip+",ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
+        } else {
+          newAllSteps += "ภาพ"+wip+","
+        }
+      })
+
+      console.log("newAllSteps="+newAllSteps)
+
       return new Promise((resolve, reject) => {
         dbConn.query(
           "INSERT INTO package_in_cms SET pkg_name=?, pkg_desc=?, pkg_min_price=?, pkg_duration=?, pkg_edits=?, cms_step=?, cms_id=?, usr_id=?",
-          [...data, "ภาพร่าง,"+step+",ภาพไฟนัล", commissionId, userId],
+          [...data, newAllSteps, commissionId, userId],
+          //รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,...ขั้นตอน,แนบสลิป2มตรวจสอบใบเสร็จ2,...ขั้นตอน,ภาพไฟนัล,แอดมินอนุมัติผลงาน,รีวิว
           (error, result) => {
           if (error) {
               reject(error);
@@ -187,6 +212,7 @@ exports.addCommission = (req, res) => {
               userId
             );
           }
+          console.log();
         } else {
           insertPackage(
             [package_name, package_detail, price, duration, edits],
@@ -574,24 +600,26 @@ exports.getQueue = (req, res) => {
 
 exports.getQueueData = (req, res) => {
   const cmsId = req.params.id;
-    dbConn.query(`
-    SELECT cms_order.od_id, 
-    commission.cms_id, commission.cms_name,
-    package_in_cms.pkg_id, package_in_cms.pkg_name
-    FROM cms_order 
-    JOIN commission ON cms_order.cms_id = commission.cms_id
-    JOIN example_img ON cms_order.cms_id = example_img.cms_id
-    JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-    WHERE cms_order.cms_id = ?
-    ORDER BY cms_order.od_q_number ASC`, [cmsId],
-    function(error, results){
-        if (error) {
-            console.log(error);
-            return res.status(500).json({error})
-        }
-        console.log(results);
-        return res.status(200).json({status:'ok', results})
-    })
+  dbConn.query(`
+  SELECT cms_order.od_id, 
+  commission.cms_id, commission.cms_name,
+  package_in_cms.pkg_id, package_in_cms.pkg_name
+  FROM cms_order 
+  JOIN commission ON cms_order.cms_id = commission.cms_id
+  JOIN example_img ON cms_order.cms_id = example_img.cms_id
+  JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
+  WHERE cms_order.cms_id = ?
+  ORDER BY cms_order.od_q_number ASC`, [cmsId],
+  function(error, results){
+      if (error) {
+          console.log(error);
+          return res.status(500).json({error})
+      }
+      // console.log(results);
+      // const uniqueResults = Array.from(new Set(results));
+      const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
+      return res.status(200).json({status:'ok', uniqueResults})
+  })
 };
 
 exports.deleteCommission = (req, res) => {
@@ -600,4 +628,231 @@ exports.deleteCommission = (req, res) => {
   function(error, results){
     
   })
+};
+
+exports.getCommission = (req, res) => {
+  let sortBy = req.query.sortBy || 'ล่าสุด';
+  let filterBy = req.query.filterBy || 'all';
+  let topicValues = req.query.topicValues || 'null';
+  // console.log(topicValues);
+  let query = ``;
+  if (topicValues.includes("0")) {
+    query = `
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
+    `;
+  } else {
+    query = `
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission_has_topic.tp_id IN (${topicValues})
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
+    `;
+  }
+  dbConn.query(query, function (error, results) {
+      // console.log(results);
+      if (error) {
+        console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+        return res.json({ status: "error", message: "status error" });
+      }
+      const uniqueCmsIds = new Set();
+      const uniqueResults = [];
+      results.forEach((row) => {
+      const cmsId = row.cms_id;
+      if (!uniqueCmsIds.has(cmsId)) {
+          uniqueCmsIds.add(cmsId);
+          uniqueResults.push(row);
+      } else {
+        const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
+          if (row.pkg_min_price < existingResult.pkg_min_price) {
+          // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
+          // ให้อัพเดทข้อมูล
+          Object.assign(existingResult, row);
+          }
+        }
+      });
+
+      // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+      return res.status(200).json({ status: "ok", commissions: uniqueResults });
+  });
+};
+
+exports.getCommissionIfollow = (req, res) => {
+  let sortBy = req.query.sortBy || 'ล่าสุด';
+  let IFollowingIDs = req.query.IFollowingIDs || '';
+  let topicValues = req.query.topicValues || 'null';
+  // console.log(topicValues);
+  
+  let query = ``;
+  if (topicValues.includes("0")) {
+    query = `
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission.usr_id IN (${IFollowingIDs})
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
+    `;
+  } else {
+    query = `
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission.usr_id IN (${IFollowingIDs})
+        AND commission_has_topic.tp_id IN (${topicValues})
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
+    `;
+  }
+  dbConn.query(query, function (error, results) {
+      // console.log(results);
+      if (error) {
+        console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+        return res.json({ status: "error", message: "status error" });
+      }
+      const uniqueCmsIds = new Set();
+      const uniqueResults = [];
+      results.forEach((row) => {
+      const cmsId = row.cms_id;
+      if (!uniqueCmsIds.has(cmsId)) {
+          uniqueCmsIds.add(cmsId);
+          uniqueResults.push(row);
+      } else {
+        const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
+          if (row.pkg_min_price < existingResult.pkg_min_price) {
+          // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
+          // ให้อัพเดทข้อมูล
+          Object.assign(existingResult, row);
+          }
+        }
+      });
+
+      // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+      return res.status(200).json({ status: "ok", commissions: uniqueResults });
+  });
 };

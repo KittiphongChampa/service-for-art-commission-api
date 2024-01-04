@@ -1,9 +1,7 @@
-let express = require("express");
+const express = require("express");
 const cors = require("cors");
 require('dotenv').config()
-let app = express();
-app.use(cors());
-
+const app = express();
 
 const http = require('http');
 const socketIO = require('socket.io');
@@ -16,7 +14,7 @@ const io = socketIO(server, {
     },
 });
 
-const Router = require('./routes/router')
+const authRoutes = require('./routes/router')
 const bodyParser = require('body-parser')
 const path = require('path')
 const fs = require('fs');
@@ -36,19 +34,13 @@ io.on('connection', (socket) => {
   });
 });
 
+app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
-app.use(
-    express.urlencoded({
-        extended: true,
-    })
-);
-app.use(
-    fileUpload()
-);
-
-app.use(Router)
+app.use(express.urlencoded({extended: true,}));
+app.use(fileUpload());
+app.use(authRoutes)
 
 
 const port = process.env.PORT || 3333;

@@ -89,3 +89,14 @@ exports.ArtistIFollow = (req, res) => {
 
     
 }
+
+exports.getTopic = (req, res) => {
+    dbConn.query(
+        `SELECT tp_id, tp_name FROM topic`, function(error, results) {
+            if (error) {
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+            return res.status(200).json({ topics: results });
+        }
+    )
+}

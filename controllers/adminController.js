@@ -573,3 +573,266 @@ exports.dataPieChart = (req, res) => {
       return res.status(200).json({ results ,message: 'สำเร็จ' });
     })
 }
+
+exports.allCommission = (req, res) => {
+  // try {
+  //   const sql = `
+//   SELECT 
+//   commission.cms_id, commission.cms_name, commission.usr_id, commission.created_at
+// FROM commission 
+// JOIN 
+//   example_img ON commission.cms_id = example_img.cms_id
+// WHERE example_img.status = "failed" AND commission.deleted_at IS NULL
+// ORDER BY commission.created_at DESC
+  //   `
+  
+  //   dbConn.query(sql, (error, results) => {
+  //     if (error) {
+  //       return res.json({ status: "error", message: error });
+  //     } 
+      
+  //     const uniqueCmsIds = new Set();
+  //     const formattedResults = [];
+  
+  //     results.forEach(row => {
+  //       const createdAtDate = new Date(row.created_at);
+  //       const formattedTime = createdAtDate.toISOString().split('T')[0];
+  
+  //       if (!uniqueCmsIds.has(row.cms_id)) {
+  //         uniqueCmsIds.add(row.cms_id);
+  //         formattedResults.push({
+  //           ...row,
+  //           formattedCreatedAt: formattedTime
+  //         });
+  //       }
+  //     });
+  
+  //     console.log(formattedResults);
+  //     return res.json({ status: "ok", data: formattedResults });
+  //   });
+  // } catch (error) {
+  //   return res.json({ status: "error", message: error });
+  // }
+  try {
+    const sql = `
+      SELECT 
+        commission.cms_id, commission.cms_name, commission.usr_id, commission.created_at, users.urs_name
+      FROM commission 
+      JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+        users ON commission.usr_id = users.id
+      WHERE example_img.status = "failed" AND commission.deleted_at IS NULL
+      ORDER BY commission.created_at DESC
+    `
+  
+    dbConn.query(sql, (error, results) => {
+      if (error) {
+        return res.json({ status: "error", message: error });
+      } 
+      
+      const uniqueCmsIds = new Set();
+      const formattedResults = [];
+  
+      results.forEach(row => {
+        const createdAtDate = new Date(row.created_at);
+        const formattedTime = createdAtDate.toISOString().replace('T', ' ').slice(0, 19);
+  
+        if (!uniqueCmsIds.has(row.cms_id)) {
+          uniqueCmsIds.add(row.cms_id);
+          formattedResults.push({
+            ...row,
+            formattedCreatedAt: formattedTime
+          });
+        }
+      });
+      // console.log(formattedResults);
+      return res.json({ status: "ok", data: formattedResults });
+    });
+  } catch (error) {
+    return res.json({ status: "error", message: error });
+  }  
+}
+
+exports.problemCommission = (req, res) => {
+  const cmsID = req.params.id;
+
+  //ข้อมูล id ของภาพที่คล้าย และ id ของภาพที่ถูกคล้าย พร้อมกับ percentage
+  const test1 = `
+  SELECT 
+    similar_img.ex_img_id, similar_img.similar_img, similar_img.percentage 
+  FROM similar_img
+  JOIN example_img ON similar_img.ex_img_id = example_img.ex_img_id
+  JOIN commission ON example_img.cms_id = commission.cms_id
+  WHERE commission.cms_id = ?
+  `;
+
+  //นำไอดีจากผลลัพธ์ที่แล้วไปหาว่าอยู่ cms อะไรและนำข้อมูลของ cms นั้นมา พร้อมกับข้อมูลของ users
+  const test2 = `
+    SELECT 
+      commission.cms_id, commission.cms_name, commission.cms_amount_q, commission.cms_desc, commission.created_at,
+      example_img.ex_img_id, example_img.ex_img_path, example_img.ex_img_path,
+      users.id, users.urs_name, users.urs_profile_img
+    FROM commission 
+    JOIN 
+      example_img ON commission.cms_id = example_img.cms_id
+    JOIN
+      users ON commission.usr_id = users.id
+    WHERE example_img.ex_img_id IN (?)
+    ORDER BY example_img.ex_img_id
+  `;
+
+  const test3 = `
+    SELECT 
+      commission.cms_id, commission.cms_name, commission.cms_amount_q, commission.cms_desc, commission.created_at,
+      example_img.ex_img_id, example_img.ex_img_path, example_img.ex_img_path,
+      users.id, users.urs_name, users.urs_profile_img
+    FROM commission 
+    JOIN 
+      example_img ON commission.cms_id = example_img.cms_id
+    JOIN
+      users ON commission.usr_id = users.id
+    WHERE example_img.ex_img_id IN (?) 
+    ORDER BY example_img.ex_img_id
+  `
+
+  dbConn.query(test1, [cmsID],(error, results) => {
+    if (error) {
+      return res.json({ status: "error", message: error });
+    }
+    const array1 = []
+    const array2 = []
+    const percentage = []
+    results.map(data=>(array1.push(data.ex_img_id)))
+    results.map(data=>(array2.push(data.similar_img)))
+    results.map(data=>(percentage.push(data.percentage)))
+
+    // ใช้ Set เพื่อลบค่าที่ซ้ำออกจาก array
+    const uniqueArray1 = Array.from(new Set(array1));
+    const uniqueArray2 = Array.from(new Set(array2));
+
+    // query หาข้อมูลของภาพที่เป็นปัญหา
+    dbConn.query(test2, [uniqueArray1], (error, ex_img_id_Data) => {
+      if (error) {
+        return res.json({ status: "error", message: error });
+      }
+
+      // แยกข้อมูลคอมมิชชันออกมา
+      const commissionData = ex_img_id_Data[0];
+      const res_Cms_similar = {
+        cms_id: commissionData.cms_id,
+        cms_name: commissionData.cms_name,
+        cms_desc: commissionData.cms_desc,
+        cms_amount_q: commissionData.cms_amount_q,
+        created_at: commissionData.created_at,
+      }
+
+      const res_User_similar = {
+        usr_id : commissionData.id,
+        urs_name: commissionData.urs_name,
+        urs_profile_img: commissionData.urs_profile_img
+      }
+
+      // แยกผลลัพธ์ของรูปภาพออกมาจากคอมมิชชัน
+      const ex_img_id_Data_split_results = ex_img_id_Data.map((result) => ({
+        ex_img_id: result.ex_img_id,
+        ex_img_path: result.ex_img_path,
+      }));
+
+      // เพิ่ม property 'status' ใน ex_img_id_Data_split_results
+      const updatedResults1 = ex_img_id_Data_split_results.map((item) => ({
+        ...item,
+        status: uniqueArray1.includes(item.ex_img_id) ? 'similar' : 'no_similar',
+      }));
+
+      // console.log(res_Cms_similar);
+      // console.log(res_User_similar);
+      // console.log(updatedResults1);
+
+
+          // query หาข้อมูลของภาพต้นฉบับ
+      dbConn.query(test3, [uniqueArray2], (error, similar_img_Data) => {
+        if (error) {
+          return res.json({ status: "error", message: error });
+        }
+
+        const result = similar_img_Data.map((result) => ({
+          // แยกผลลัพธ์ของข้อมูลของ cms ออกมาจาก result
+          cms_data: {
+            cms_id: result.cms_id,
+            cms_name: result.cms_name,
+            cms_amount_q: result.cms_amount_q,
+            cms_desc: result.cms_desc,
+            created_at: result.created_at
+          },
+          // แยกผลลัพธ์ของข้อมูลของ user ออกมาจาก result
+          users_data: {
+            usr_id: result.id,
+            urs_name: result.urs_name,
+            urs_profile_img: result.urs_profile_img
+          },
+          // แยกผลลัพธ์ของรูปภาพออกมาจากคอมมิชชัน
+          img_data: {
+            ex_img_id: result.ex_img_id,
+            ex_img_path: result.ex_img_path,
+            status: uniqueArray2.includes(result.ex_img_id) ? 'prototype' : 'no_prototype',
+          }
+        }))
+        // console.log(result);
+
+        // แยกผลลัพธ์ของรูปภาพออกมาจากคอมมิชชัน
+        // const similar_img_Data_split_results = similar_img_Data.map((result) => ({
+        //   ex_img_id: result.ex_img_id,
+        //   ex_img_path: result.ex_img_path,
+        // }));
+
+        // เพิ่ม property 'status' ใน ex_img_id_Data_split_results
+        // const updatedResults2 = similar_img_Data_split_results.map((item) => ({
+        //   ...item,
+        //   status: uniqueArray2.includes(item.ex_img_id) ? 'prototype' : 'no_prototype',
+        // }));
+
+        // console.log(updatedResults2);
+        // console.log(percentage);
+
+        return res.json({
+          status: "ok",
+          data1: { res_Cms_similar, res_User_similar, updatedResults1 },
+          data2:  result ,
+        });
+      });
+    });
+  })
+}
+
+exports.problemCommissionApprove = (req, res) => {
+  const cmsID = req.params.id;
+  const array_imgSimilar = req.query.array_imgSimilar;
+  // console.log(cmsID);
+  // console.log(array_imgSimilar);
+  const status = "pass";
+  dbConn.query("UPDATE example_img SET status=? WHERE ex_img_id IN (?)",[status, array_imgSimilar],
+  function (error, results) {
+    if (results) {
+      return res.json({
+        status: "ok",
+      });
+    } else {
+      return res.json({ status: "error", message: error });
+    }
+  })
+}
+
+exports.problemCommissionNotApprove = (req, res) => {
+  const cmsID = req.params.id;
+  dbConn.query("UPDATE commission SET deleted_at=? WHERE cms_id = ?",[date, cmsID],
+  function (error, results) {
+    if (results) {
+      return res.json({
+        status: "ok",
+      });
+    } else {
+      return res.json({ status: "error", message: error });
+    }
+  })
+}

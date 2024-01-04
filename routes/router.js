@@ -30,11 +30,12 @@ router.put("/reset-password", signinController.resetPassword);
 //userDataController
 router.get("/index", auth.verifyToken, userDataController.index);
 router.get("/myCommission", auth.verifyToken, userDataController.myCommission);
+router.get("/myGallery", auth.verifyToken, userDataController.myGallery);
 
 //profileController
 router.get("/profile", auth.verifyToken, auth.user_artisOnly, profileController.profile);
-router.post("/openFollower", auth.verifyToken, profileController.openFollower)
-router.post("/openFollowing", auth.verifyToken, profileController.openFollowing)
+router.get("/openFollower", profileController.openFollower)
+router.get("/openFollowing", profileController.openFollowing)
 router.put('/profile/password/change', auth.verifyToken, profileController.changePassword)
 router.patch("/profile/update", auth.verifyToken, profileController.update_profile);
 router.patch("/cover_color/update", auth.verifyToken, profileController.update_cover_color);
@@ -46,6 +47,7 @@ router.put("/delete_account", auth.verifyToken, profileController.delete_account
 router.get("/profile/:id", auth.verifyToken, viewprofileController.viewProfile);
 router.post("/follow", auth.verifyToken, viewprofileController.follow);
 router.delete("/unfollow/:id", auth.verifyToken, viewprofileController.unfollow);
+router.get("/userCommission/:id", auth.verifyToken, viewprofileController.userCommission);
 
 //chat
 router.get("/index", auth.verifyToken, chatController.index);
@@ -59,13 +61,13 @@ router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
 // router.patch("/commission/delete/:id", auth.verifyToken, commissionController.deleteCommission);
 
 //indexCommissionController
-// router.get("/userCommission/:id", auth.verifyToken, controller.userCommission);
 router.get("/latestCommission", cmsController.latestCommission);
 router.get("/artistCommission", auth.verifyToken, cmsController.artistCommission);
-// router.get("/popularCommission", auth.verifyToken, controller.popularCommission);
 router.get("/detailCommission/:id", cmsController.detailCommission);
 router.get("/queue/:id", cmsController.getQueue)
 router.get("/getQueueData/:id", cmsController.getQueueData)
+router.get("/getCommission", cmsController.getCommission)
+router.get("/getCommission/Ifollow", cmsController.getCommissionIfollow)
 
 //galleryController
 router.get("/gallerry/select-cms", auth.verifyToken, galleryController.selectgallory)
@@ -96,25 +98,27 @@ router.post("/faq/add", auth.verifyToken, adminController.addfaq);
 router.patch("/faq/update/:id", adminController.updatefaq);
 router.patch("/faq/delete/:id", adminController.deletefaq);
 
-// router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
-// router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
-// router.patch("/commission/problem/approve/:id", adminController.problemCommissionApprove);
-// router.patch("/commission/problem/notapprove/:id", adminController.problemCommissionNotApprove);
+//admin-dashboard
+router.get("/getYearData", adminController.getYearData);
+router.get("/getOutOfYearData", adminController.getOutOfYearData);
+router.get("/getdataPieChart", adminController.dataPieChart );
+
+//adminManageCms
+router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
+router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
+router.patch("/commission/problem/approve/:id", adminController.problemCommissionApprove);
+router.patch("/commission/problem/notapprove/:id", adminController.problemCommissionNotApprove);
 
 //artist-dashboard
 router.get("/getYearDataArtist", auth.verifyToken, artistDashboardController.getYearDataArtist);
 router.get("/getOutOfYearDataArtist", auth.verifyToken, artistDashboardController.getOutOfYearDataArtist);
 router.get("/getCountTopic", artistDashboardController.getCountTopic)
 
-//admin-dashboard
-router.get("/getYearData", adminController.getYearData);
-router.get("/getOutOfYearData", adminController.getOutOfYearData);
-router.get("/getdataPieChart", adminController.dataPieChart );
-
 //indexController
 router.post("/ArtistIndex", indexController.ArtistIndex);
 router.get("/allArtist", indexController.allArtist);
 router.get("/getAritisIFollow", indexController.ArtistIFollow);
+router.get("/getTopic", indexController.getTopic);
 
 //reportController
 router.post("/send-report", reportController.sendReport);
@@ -125,6 +129,9 @@ router.get("/allDeletedReport", reportController.allDeletedReport);
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);
 router.post("/messages/addmsg-order", orderController.addMessagesOrder);
+
+
+router.post("/test/:id", orderController.test);
 
 
 

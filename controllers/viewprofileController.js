@@ -103,3 +103,46 @@ exports.unfollow = (req,res) => {
       }
     )
 }
+
+exports.userCommission =(req, res) => {
+  const userID = req.params.id;
+  const query = `
+    SELECT commission.cms_id, commission.cms_name, commission.cms_desc, 
+    example_img.ex_img_path, users.id, users.urs_name,
+    package_in_cms.pkg_id, package_in_cms.pkg_min_price
+    FROM commission
+    JOIN example_img ON commission.cms_id = example_img.cms_id
+    JOIN users ON commission.usr_id = users.id
+    JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    WHERE commission.usr_id IN (?) AND commission.deleted_at IS NULL
+    ORDER BY commission.created_at DESC
+  `;
+  
+  dbConn.query(query, [userID], function (error, results) {
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+
+    const uniqueCmsIds = new Set();
+    const uniqueResults = [];
+
+    results.forEach((row) => {
+      const cmsId = row.cms_id;
+      if (!uniqueCmsIds.has(cmsId)) {
+        uniqueCmsIds.add(cmsId);
+        uniqueResults.push(row);
+      } else {
+        const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
+        if (row.pkg_min_price < existingResult.pkg_min_price) {
+          // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
+          // ให้อัพเดทข้อมูล
+          Object.assign(existingResult, row);
+        }
+      }
+    });
+
+    // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+    return res.status(200).json({ status: "ok", commissions: uniqueResults });
+  });
+}

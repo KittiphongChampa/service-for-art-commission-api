@@ -79,3 +79,36 @@ exports.myCommission = (req, res) => {
     });
 };
 
+exports.myGallery = (req, res) => {
+  const myId = req.user.userId;
+  const query = `
+    SELECT 
+      artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+      example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
+    FROM 
+      artwork
+    JOIN 
+      example_img ON artwork.ex_img_id = example_img.ex_img_id
+    WHERE 
+      artwork.deleted_at IS NULL AND artwork.usr_id = ?
+    UNION
+    SELECT
+      example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+      example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+    FROM
+      example_img
+    JOIN
+      artwork ON example_img.artw2_id = artwork.artw_id
+    WHERE
+      example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND example_img.usr_id = ?
+    ORDER BY created_at DESC
+  `
+  dbConn.query(query, [myId, myId], function (error, results) {
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+    res.status(200).json({myGallery : results})
+  })
+};
+

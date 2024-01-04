@@ -97,27 +97,24 @@ exports.update_profile = (req, res) => {
 };
 
 exports.openFollower = (req, res) => {
-    const { myFollower } = req.body;
-    console.log(myFollower);
-    // console.log(myFollower);
+  const myFollower = req.query.myFollower;
     const followerIDs = myFollower.split(',').map(id => parseInt(id.trim(), 10));
-    dbConn.query(
-        "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
-        [followerIDs],
-        function(error, results){
-        if (error) {
-            console.error(error);
-            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดในการค้นหาผู้ใช้" });
-        }
-        // ส่งข้อมูลผู้ใช้ที่ค้นหาได้กลับเป็น JSON
-        return res.status(200).json({ status: "ok", results });
-        }
-    )
+  dbConn.query(
+      "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
+      [followerIDs],
+      function(error, results){
+      if (error) {
+          console.error(error);
+          return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดในการค้นหาผู้ใช้" });
+      }
+      // ส่งข้อมูลผู้ใช้ที่ค้นหาได้กลับเป็น JSON
+      return res.status(200).json({ status: "ok", myfollower : results });
+      }
+  )
 }
 
 exports.openFollowing = (req, res) => {
-    const { iFollowing } = req.body;
-    // console.log(iFollowing);
+    const iFollowing = req.query.iFollowing;
     const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
     dbConn.query(
         "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
@@ -128,7 +125,7 @@ exports.openFollowing = (req, res) => {
             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดในการค้นหาผู้ใช้" });
         }
         // ส่งข้อมูลผู้ใช้ที่ค้นหาได้กลับเป็น JSON
-        return res.status(200).json({ status: "ok", results });
+        return res.status(200).json({ status: "ok", ifollowing : results });
         }
     )
 }

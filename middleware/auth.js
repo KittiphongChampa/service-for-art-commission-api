@@ -3,13 +3,7 @@ const secret_token = "mysecret_id";
 let mysql = require("mysql2");
 
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
-// let dbConn = mysql.createConnection({
-//   host: "192.185.184.112",
-//   user: "itweb176_itweb1766",
-//   password: "XPWVySBR@a+H",
-//   database: "itweb176_projectdb",
-// });
-// dbConn.connect();
+
 
 //เช็กว่าคนที่จะเข้ามาใช้งานมีการ authentication หรือยัง
 exports.verifyToken = (req, res, next) => {
