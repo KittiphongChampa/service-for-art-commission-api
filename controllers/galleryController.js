@@ -183,12 +183,14 @@ exports.galloryUpdate = (req, res) => {
 
 exports.galloryDelete = (req, res) => {
     const artwork_id = req.params.id;
+    console.log(artwork_id);
     try {
         dbConn.query(
-          "UPDATE artwork SET deleted_at = ? WHERE artwork_id = ?",
+          "UPDATE artwork SET deleted_at = ? WHERE artw_id = ?",
           [date, artwork_id],
           function (error, results) {
             if (error) {
+                console.log('galloryDelete : ',error);
                 return res.status(500).json({ status : 'error',})
             }
             return res.status(200).json({ status : 'ok', message: "ลบผลงานวาดสำเร็จ",})

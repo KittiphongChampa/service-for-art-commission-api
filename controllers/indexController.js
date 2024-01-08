@@ -51,7 +51,7 @@ exports.allArtist = (req, res) => {
 
     dbConn.query(sqlQuery, [sortBy], (error, results) => {
         if (error) {
-          console.log(error);
+          console.log('allArtist : ', error);
           return res.status(500).json({ message: 'Internal Server Error' });
         }
         return res.status(200).json({ results, message: 'Success' });
@@ -79,7 +79,7 @@ exports.ArtistIFollow = (req, res) => {
         `;
         dbConn.query(sqlQuery, (error, results) => {
             if (error) {
-                console.log(error);
+                console.log('ArtistIFollow : ', error);
                 return res.status(500).json({ message: 'Internal Server Error' });
             }
             // console.log(results);
