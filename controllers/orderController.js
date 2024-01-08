@@ -300,19 +300,21 @@ async function insertCmsStep(orderId, step_name, checked_at) {
 
 
 exports.addMessagesOrder = (req, res, next) => {
+  const from = req.user.userId;
     try {
-      const { from, to, od_id, step_id } = req.body;
+      const { to, od_id, step_id } = req.body;
       // console.log(req.body);
-      const message = "คุณได้ส่งคำร้อง";
+      const message = "ส่งคำขอจ้างแล้ว";
       dbConn.query(
-        "INSERT INTO messages SET sender=?, receiver=?, message_text=?, od_id=?", 
+        `INSERT INTO messages (sender, receiver, message_text, od_id,checked, step_id)
+        VALUES (?, ?, ?, ?, 0, (SELECT MIN(cms_steps.step_id) FROM cms_steps WHERE messages.od_id = cms_steps.od_id))`, 
         [from, to, message, od_id],
         function (error, result){
           if (error) {
             console.log(error);
           } 
           if (result.affectedRows > 0) {
-            return res.json({ status:'ok', msg: "Message added successfully." });
+            return res.json({ status:'ok', msg: "Message added successfully.", result });
           } else {
             return res.json({ status:'error', msg: "Failed to add message to the database." });
           }
@@ -320,7 +322,7 @@ exports.addMessagesOrder = (req, res, next) => {
       )
     } catch {
       next();
-      // return res.json({ status: "error", message: "status error" });
+      return res.json({ status: "error", message: "status error" });
     }
 };
 
@@ -380,6 +382,7 @@ exports.test = (req, res) => {
 //!------------------------------------------------------------
 
 exports.updateStep = (req, res) => {
+  console.log('ทำงาน req.body : ',req.body);
   const { step_id, od_id, od_price, od_edit, deleted } = req.body;
   try {
 
@@ -415,6 +418,9 @@ exports.updateStep = (req, res) => {
       WHERE od_id = ? AND checked_at IS NULL` ,
         [od_id, od_id],
         function (error, results) {
+          if (error) {
+            console.log(error);
+          }
           res.json(results[0]);
         }
       );
@@ -486,3 +492,49 @@ exports.getAllOrderDetail = (req, res) => {
     });
   }
 }
+
+exports.getAllSteps = (req, res, next) => {
+  // console.log('เข้า getMessages ', req.body);
+  try {
+    const { od_id } = req.body;
+    dbConn.query(
+      `SELECT step_id, od_id , checked_at,step_name,step_type ,(SELECT MAX(messages.step_id) FROM messages JOIN cms_steps ON messages.step_id = cms_steps.step_id WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
+      FROM cms_steps WHERE od_id = ?` ,
+      [od_id],
+      function (error, results) {
+        const allSteps = results.map((step) => {
+          return {
+            // fromSelf: step.step_id.toString() == from,
+            od_id: step.od_id,
+            checked_at: step.checked_at,
+            step_name: step.step_name,
+            step_type: step.step_type,
+            step_id: step.step_id,
+            wip_sent: step.wip_sent
+          };
+        });
+        res.json(allSteps);
+      }
+    );
+  } catch (ex) {
+    next(ex);
+  }
+};
+
+exports.getCurrentStep = (req, res, next) => {
+  // console.log('เข้า getMessages ', req.body);
+  try {
+    const { od_id } = req.body;
+    dbConn.query(
+      `SELECT step_id, od_id , checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
+      FROM cms_steps
+      WHERE od_id = ? AND checked_at IS NULL` ,
+      [od_id, od_id],
+      function (error, results) {
+        res.json(results[0]);
+      }
+    );
+  } catch (ex) {
+    next(ex);
+  }
+};

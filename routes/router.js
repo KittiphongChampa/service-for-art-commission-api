@@ -52,7 +52,7 @@ router.get("/userCommission/:id", auth.verifyToken, viewprofileController.userCo
 //chat
 router.get("/index", auth.verifyToken, chatController.index);
 router.get("/chat/partner/:id", auth.verifyToken, chatController.chatPartner);
-router.get("/allchat/:id", chatController.allchat);
+router.get("/allchat", auth.verifyToken, chatController.allchat);
 router.post("/messages/getmsg", chatController.getMessages);
 router.post("/messages/addmsg", chatController.addMessages);
 
@@ -128,10 +128,15 @@ router.get("/allDeletedReport", reportController.allDeletedReport);
 
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);
-router.post("/messages/addmsg-order", orderController.addMessagesOrder);
+router.post("/messages/addmsg-order", auth.verifyToken, orderController.addMessagesOrder);
+router.post("/getAllSteps", orderController.getAllSteps);
+router.post("/getcurrentstep", orderController.getCurrentStep);
+router.post("/getorderdata", orderController.getCurrentOrderData);
+router.post("/getallorderdetail", orderController.getAllOrderDetail);
+router.post("/messages/updatestep", orderController.updateStep);
 
 
-router.post("/test/:id", orderController.test);
+// router.post("/test/:id", orderController.test);
 
 
 

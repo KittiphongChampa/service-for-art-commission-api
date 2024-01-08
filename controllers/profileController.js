@@ -97,7 +97,7 @@ exports.update_profile = (req, res) => {
 };
 
 exports.openFollower = (req, res) => {
-  const myFollower = req.query.myFollower;
+  const myFollower = req.query.myFollower || '0';
     const followerIDs = myFollower.split(',').map(id => parseInt(id.trim(), 10));
   dbConn.query(
       "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
@@ -114,7 +114,7 @@ exports.openFollower = (req, res) => {
 }
 
 exports.openFollowing = (req, res) => {
-    const iFollowing = req.query.iFollowing;
+    const iFollowing = req.query.iFollowing || '0';
     const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
     dbConn.query(
         "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",

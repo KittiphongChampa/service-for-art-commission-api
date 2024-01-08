@@ -39,20 +39,24 @@ exports.addCommission = (req, res) => {
       const halfWip = Math.floor(allWipArr.length / 2) //หารครึี่งปัดเศษลงหลังจากสเตปนี้ต้องจ่ายสลิป2
       let newAllSteps = ""
       allWipArr.map((wip, index) => {
+        //มี 2 ขั้นตอน มี 0 และ 1
+        //half = 1
+        //ถ้ามี 2 ขั้นตอนเข้า 2 เงื่อนไขแรก ถ้ามี 1 ขั้นตอนเข้า 3 เงื่อนไข
+        let count = 0;
         if (index == 0) {
-          newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,ภาพ"+wip+","
+          newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
+          count += 1;
         }
-        //ถ้าwip=50%
-        else if (index == halfWip - 1) {
-          newAllSteps += "ภาพ"+wip+",แนบสลิป2,ตรวจสอบใบเสร็จ2,"
-          // newAllSteps.push("แนบสลิป2","ตรวจสอบใบเสร็จ2",wip)
+
+        if (count <= 1) newAllSteps += "ภาพ" + wip +","
+        
+        if (index == halfWip) {
+          newAllSteps += "แนบสลิป2,ตรวจสอบใบเสร็จ2,"
+          count += 1;
         }
-          //ถ้าเป็นwipสุดท้าย
-        else if (index == allWipArr.length - 1) {
-          // newAllSteps.push(wip,"ภาพไฟนัล","แอดมินอนุมัติ","รีวิว")
-          newAllSteps += "ภาพ"+wip+",ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
-        } else {
-          newAllSteps += "ภาพ"+wip+","
+        if (index == allWipArr.length - 1) {
+          newAllSteps += "ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
+          count += 1;
         }
       })
 
