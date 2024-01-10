@@ -58,7 +58,9 @@ router.post("/messages/addmsg", chatController.addMessages);
 
 //commission
 router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
-// router.patch("/commission/delete/:id", auth.verifyToken, commissionController.deleteCommission);
+router.patch("/commission/update/:id", auth.verifyToken, cmsController.updateCommission);
+router.patch("/commission/delete/:id", cmsController.deleteCommission);
+
 
 //indexCommissionController
 router.get("/latestCommission", cmsController.latestCommission);
@@ -72,7 +74,7 @@ router.get("/getCommission/Ifollow", cmsController.getCommissionIfollow)
 //galleryController
 router.get("/gallerry/select-cms", auth.verifyToken, galleryController.selectgallory)
 router.post("/gallerry/add", auth.verifyToken, galleryController.galloryAdd)
-router.patch("/gallerry/update/:id", galleryController.galloryUpdate)
+router.patch("/gallerry/update/:id", auth.verifyToken, galleryController.galloryUpdate)
 router.patch("/gallerry/delete/:id", galleryController.galloryDelete)
 
 router.get("/gallerry/all", galleryController.galloryAll)
@@ -134,6 +136,9 @@ router.post("/getcurrentstep", orderController.getCurrentStep);
 router.post("/getorderdata", orderController.getCurrentOrderData);
 router.post("/getallorderdetail", orderController.getAllOrderDetail);
 router.post("/messages/updatestep", orderController.updateStep);
+router.post("/upload-img/progress/:id", orderController.sendImageProgress);
+router.get("/getPayment/order/:id", orderController.getPayment);
+
 
 
 // router.post("/test/:id", orderController.test);

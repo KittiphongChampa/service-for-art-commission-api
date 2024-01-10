@@ -5,6 +5,7 @@ const fs = require("fs");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const saltRounds = 10;
+const nodemailer = require("nodemailer");
 
 const mysql = require('mysql2')
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
@@ -113,7 +114,7 @@ exports.adminVerifyEmail = async (req, res) => {
         service: "gmail",
         auth: {
           user: "ktpyun@gmail.com",
-          pass: "uzklexxuegiwcehr",
+          pass: process.env.GOOGLE_PASS,
         },
       });
       let mailOptions = {
@@ -150,6 +151,7 @@ exports.adminVerifyEmail = async (req, res) => {
       console.log("เข้า catch");
       return res.status(500).json({ status: "error", message: "Failed" });
     }
+
     function queryDatabase(sql, params) {
       return new Promise((resolve, reject) => {
         dbConn.query(sql, params, function (error, results) {
@@ -810,7 +812,7 @@ exports.problemCommissionApprove = (req, res) => {
   const array_imgSimilar = req.query.array_imgSimilar;
   // console.log(cmsID);
   // console.log(array_imgSimilar);
-  const status = "pass";
+  const status = "passed";
   dbConn.query("UPDATE example_img SET status=? WHERE ex_img_id IN (?)",[status, array_imgSimilar],
   function (error, results) {
     if (results) {

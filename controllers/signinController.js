@@ -73,12 +73,12 @@ function queryDatabase(sql, params) {
     return new Promise((resolve, reject) => {
     dbConn.query(sql, params, function (error, results) {
         if (error) {
-        reject(error);
+          reject(error);
         } else {
-        resolve(results);
+          resolve(results);
         }
     });
-    });
+  });
 }
 
 exports.verify_email = (req, res) => {

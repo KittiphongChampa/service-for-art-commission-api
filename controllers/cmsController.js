@@ -626,12 +626,145 @@ exports.getQueueData = (req, res) => {
   })
 };
 
+// exports.updateCommission = (req, res) => {
+//   try {
+//     function insertCms_type_of_use(typeofuse, cms_id, userId) {
+//       const tous = typeofuse.split(',');
+//       const records = tous.map((tou) => ({
+//         typeofused: tou,
+//         cms_id,
+//         userId,
+//       }));
+//       records.forEach((record) => {
+//         dbConn.query(
+//             "INSERT INTO commission_has_type_of_use (cms_id, usr_id, tou_id) VALUES (?, ?, ?)",
+//             [record.cms_id, record.userId, record.typeofused],
+//             (error, result) => {
+//             if (error) {
+//                 console.error('Error inserting record:', error);
+//             } else {
+//                 console.log('commission_has_type_of_use success:', result.insertId);
+//             }
+//           }
+//         );
+//       });
+//     }
+//     const userId = req.user.userId;
+//     const cms_id = req.params.id;
+//     const { commission_name, typeofuse, commission_description, commission_q, good, bad, no_talking } = req.body;
+//     dbConn.query(`
+//       UPDATE commission SET cms_name=? cms_desc=? cms_amount_q=? cms_good_at=? cms_bad_at=? cms_no_talking=? WHERE cms_id=? AND usr_id=?
+//     `,[commission_name, commission_description, commission_q, good, bad, no_talking], 
+//     function(error, results){
+//       if (error) {
+//         console.log(error);
+//         return res.status(500).json({ status : 'error',})
+//       }
+//       dbConn.query(`DELETE FROM commission_has_type_of_use WHERE cms_id=? AND usr_id=?`,[cms_id, userId],
+//       function(err, result) {
+//         if (err) {
+//           console.log(err);
+//           return res.status(500).json({ status : 'error',})
+//         }
+//         insertCms_type_of_use(typeofuse, cms_id, userId);
+//       })
+//     })
+//     // return res.status(200).json({ status : 'ok', message: "แก้ไข cms สำเร็จ",})
+
+//   } catch (error) {
+//     console.error('Error:', error);
+//     res.status(500).json({ status: 'error', message: 'An error occurred' });
+//   }
+// };
+
+exports.updateCommission = async (req, res) => {
+  console.log('เข้า');
+  try {
+    function insertCms_type_of_use(typeofuse, cms_id, userId) {
+      const tous = typeofuse.split(',');
+      const records = tous.map((tou) => ({
+        typeofused: tou,
+        cms_id,
+        userId,
+      }));
+      const insertPromises = records.map((record) => {
+        return new Promise((resolve, reject) => {
+          dbConn.query(
+            "INSERT INTO commission_has_type_of_use (cms_id, usr_id, tou_id) VALUES (?, ?, ?)",
+            [record.cms_id, record.userId, record.typeofused],
+            (error, result) => {
+              if (error) {
+                console.error('Error inserting record:', error);
+                reject(error);
+              } else {
+                console.log('commission_has_type_of_use success:', result.insertId);
+                resolve(result.insertId);
+              }
+            }
+          );
+        });
+      });
+
+      return Promise.all(insertPromises);
+    }
+
+    const userId = req.user.userId;
+    const cms_id = req.params.id;
+    const { commission_name, typeofuse, commission_description, commission_q, good, bad, no_talking } = req.body;
+
+    const updateResult = await new Promise((resolve, reject) => {
+      dbConn.query(`
+        UPDATE commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=? WHERE cms_id=? AND usr_id=?
+      `, [commission_name, commission_description, commission_q, good, bad, no_talking, cms_id, userId],
+        function (error, results) {
+          if (error) {
+            console.log(error);
+            reject(error);
+          }
+          resolve(results);
+        });
+    });
+
+    const deleteResult = await new Promise((resolve, reject) => {
+      dbConn.query(`DELETE FROM commission_has_type_of_use WHERE cms_id=? AND usr_id=?`, [cms_id, userId],
+        function (err, result) {
+          if (err) {
+            console.log(err);
+            reject(err);
+          }
+          resolve(result);
+        });
+    });
+
+    const insertResults = await insertCms_type_of_use(typeofuse, cms_id, userId);
+
+    return res.status(200).json({ status: 'ok', message: "แก้ไข cms สำเร็จ" });
+  } catch (error) {
+    console.error('Error:', error);
+    res.status(500).json({ status: 'error', message: 'An error occurred' });
+  }
+};
+
 exports.deleteCommission = (req, res) => {
-  dbConn.query('',
-  [],
-  function(error, results){
-    
-  })
+  const cms_id = req.params.id;
+  try {
+    dbConn.query(
+      "UPDATE commission SET deleted_at = ? WHERE cms_id = ?",
+      [date, cms_id],
+      function (error, results) {
+        if (error) {
+            console.log('deleteCommission : ',error);
+            return res.status(500).json({ status : 'error',})
+        }
+        return res.status(200).json({ status : 'ok', message: "ลบคอมมิชชันสำเร็จ",})
+      }
+    );
+  } catch {
+      return res.json({
+          status: "catch",
+          message: "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
+      });
+  }
 };
 
 exports.getCommission = (req, res) => {

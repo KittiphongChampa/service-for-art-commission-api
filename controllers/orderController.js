@@ -445,7 +445,8 @@ exports.getCurrentOrderData = (req, res) => {
   const { od_id } = req.body;
   try {
     dbConn.query(
-      `SELECT *,(SELECT urs_name FROM users WHERE cms_order.artist_id = users.id) AS artist_name, (SELECT urs_name FROM users WHERE cms_order.customer_id = users.id) AS customer_name
+      `SELECT *,(SELECT urs_name FROM users WHERE cms_order.artist_id = users.id) AS artist_name, (SELECT urs_name FROM users WHERE cms_order.customer_id = users.id) AS customer_name,
+      (SELECT tou_name FROM type_of_use WHERE od_tou = tou_id) AS tou
       FROM cms_order
       JOIN  package_in_cms ON cms_order.pkg_id = package_in_cms.pkg_id
       JOIN commission ON package_in_cms.cms_id = commission.cms_id
@@ -537,4 +538,207 @@ exports.getCurrentStep = (req, res, next) => {
   } catch (ex) {
     next(ex);
   }
+};
+
+// exports.sendImageProgress = async (req, res) => {
+//   try {
+//     function insert(image_chat, msgId) {
+//       console.log('msgId : ', msgId);
+//       return new Promise((resolve, reject) => {
+//         dbConn.query(
+//           'INSERT INTO attach_img SET att_img_path=?, chat_id=?',
+//           [image_chat, msgId],
+//           (error, results) => {
+//             if (error) {
+//               console.error('เกิดข้อผิดพลาดในการดำเนินการ: ', error);
+//               reject(error);
+//             }
+//             console.log('บันทึกสำเร็จ');
+//             resolve(results);
+//           }
+//         );
+//       });
+//     }
+
+//     const msgId = req.params.id;
+//     console.log('msgId : ', msgId);
+//     const file = req.files.image_file;
+//     if (!file || file.length === 0) {
+//       return res.status(400).json({ error: 'No files uploaded' });
+//     }
+
+//     if (file.length >= 2) {
+//       console.log('2 ไฟล์');
+//       await Promise.all(
+//         file.map((file) => {
+//           return new Promise((resolve, reject) => {
+//             const filename_random =
+//               __dirname.split('controllers')[0] +
+//               '/public/images_chat/' +
+//               randomstring.generate(50) +
+//               '.jpg';
+//             while (fs.existsSync(filename_random)) {
+//               filename_random =
+//                 __dirname.split('controllers')[0] +
+//                 '/public/images_chat/' +
+//                 randomstring.generate(60) +
+//                 '.jpg';
+//             }
+
+//             file.mv(filename_random, (error) => {
+//               if (error) {
+//                 console.error('Error moving file:', error);
+//                 reject(error);
+//               } else {
+//                 const image = filename_random.split('/public')[1];
+//                 const image_chat = `${req.protocol}://${req.get('host')}${image}`;
+//                 insert(image_chat, msgId).then(resolve).catch(reject);
+//               }
+//             });
+//           });
+//         })
+//       );
+//     } else {
+//       console.log('1 ไฟล์');
+//       var filename_random = __dirname.split('controllers')[0] + '/public/images_chat/' + randomstring.generate(50) + '.jpg';
+//       while (fs.existsSync(filename_random)) {
+//         filename_random =
+//           __dirname.split('controllers')[0] +
+//           '/public/images_chat/' +
+//           randomstring.generate(60) +
+//           '.jpg';
+//       }
+
+//       await new Promise((resolve, reject) => {
+//         file.mv(filename_random, (error) => {
+//           if (error) {
+//             console.error('Error moving file:', error);
+//             reject(error);
+//           } else {
+//             const image = filename_random.split('/public')[1];
+//             const image_chat = `${req.protocol}://${req.get('host')}${image}`;
+//             insert(image_chat, msgId).then(resolve).catch(reject);
+//           }
+//         });
+//       });
+//     }
+
+//     res.status(200).json({ status: 'ok' });
+//   } catch (error) {
+//     console.log(error);
+//     res.status(500).json({ status: 'error' });
+//   }
+// };
+
+exports.sendImageProgress = async (req, res) => {
+  try {
+    function insert(image_chat, msgId) {
+      console.log('msgId : ', msgId);
+      return new Promise((resolve, reject) => {
+        dbConn.query(
+          'INSERT INTO attach_img SET att_img_path=?, chat_id=?',
+          [image_chat, msgId],
+          (error, results) => {
+            if (error) {
+              console.error('เกิดข้อผิดพลาดในการดำเนินการ: ', error);
+              reject(error);
+            }
+            const att_img_path = image_chat; // นำค่า image_chat มาใช้เป็น att_img_path
+            console.log('บันทึกสำเร็จ');
+            resolve({ results, att_img_path }); // ส่งค่า att_img_path กลับ
+          }
+        );
+      });
+    }
+
+    const msgId = req.params.id;
+    console.log('msgId : ', msgId);
+    const file = req.files.image_file;
+    if (!file || file.length === 0) {
+      return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    if (file.length >= 2) {
+      console.log('2 ไฟล์');
+      const result = await Promise.all(
+        file.map((file) => {
+          return new Promise((resolve, reject) => {
+            const filename_random =
+              __dirname.split('controllers')[0] +
+              '/public/images_chat/' +
+              randomstring.generate(50) +
+              '.jpg';
+            while (fs.existsSync(filename_random)) {
+              filename_random =
+                __dirname.split('controllers')[0] +
+                '/public/images_chat/' +
+                randomstring.generate(60) +
+                '.jpg';
+            }
+
+            file.mv(filename_random, (error) => {
+              if (error) {
+                console.error('Error moving file:', error);
+                reject(error);
+              } else {
+                const image = filename_random.split('/public')[1];
+                const image_chat = `${req.protocol}://${req.get('host')}${image}`;
+                insert(image_chat, msgId).then(resolve).catch(reject);
+              }
+            });
+          });
+        })
+      );
+
+      const att_img_paths = result.map(({ att_img_path }) => att_img_path);
+      res.status(200).json({ status: 'ok', att_img_paths });
+    } else {
+      console.log('1 ไฟล์');
+      var filename_random = __dirname.split('controllers')[0] + '/public/images_chat/' + randomstring.generate(50) + '.jpg';
+      while (fs.existsSync(filename_random)) {
+        filename_random =
+          __dirname.split('controllers')[0] +
+          '/public/images_chat/' +
+          randomstring.generate(60) +
+          '.jpg';
+      }
+
+      await new Promise((resolve, reject) => {
+        file.mv(filename_random, (error) => {
+          if (error) {
+            console.error('Error moving file:', error);
+            reject(error);
+          } else {
+            const image = filename_random.split('/public')[1];
+            const image_chat = `${req.protocol}://${req.get('host')}${image}`;
+            insert(image_chat, msgId).then((result) => {
+              const { att_img_path } = result;
+              res.status(200).json({ status: 'ok', att_img_path });
+            }).catch(reject);
+          }
+        });
+      });
+    }
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ status: 'error' });
+  }
+};
+
+//ส่งข้อมูลของ cms_order และ users
+exports.getPayment = (req, res) => {
+  const orderId = req.params.id;
+  const sql = `
+  SELECT cms_order.od_first_pay, cms_order.od_final_pay, cms_order.od_price, users.urs_account_name, users.urs_promptpay_number
+  FROM cms_order 
+  JOIN users ON cms_order.artist_id = users.id
+  WHERE od_id = ?
+  `
+  dbConn.query(sql, [orderId], (error, PaymentData) => {
+    if (error) {
+      console.log(error);
+      return res.status(500).json({status: 'error'})
+    }
+    return res.status(200).json({status: 'ok', PaymentData})
+  })
 };

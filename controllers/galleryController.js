@@ -39,151 +39,348 @@ exports.selectgallory = (req, res) => {
     })
 };
 
-exports.galloryAdd = (req, res) => {
+// exports.galloryAdd = (req, res) => {
+//     const userId = req.user.userId;
+//     const {ex_img_id, artworkDesc, artworkTopic} = req.body;
+
+//     if (ex_img_id === 'undefined') {
+//         function insertArtwork(artworkDesc, userId){
+//             return new Promise((resolve, reject) => {
+//                 dbConn.query(`
+//                 INSERT INTO artwork SET artw_desc=?, usr_id=?  
+//                 `,[artworkDesc, userId], (error, results) => {
+//                     if (error) {
+//                         reject(error);
+//                     } else {
+//                         resolve(results.insertId);
+//                     }
+//                 })
+//             })
+//         }
+
+//         function insertArtw_has_topic(artworkTopic, artw2_id, userId){
+//             const topics = artworkTopic.split(','); // แยกค่า artworkTopic เป็นรายการ
+//             const records = topics.map((topic) => ({
+//                 artworkTopic: topic,
+//                 userId,
+//                 artw: artw2_id,
+//             }));
+        
+//             // ทำการบันทึกลงในฐานข้อมูล โดยวนลูปเพื่อบันทึกแต่ละรายการ
+//             records.forEach((record) => {
+//                 dbConn.query(
+//                     "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
+//                     [record.artworkTopic, record.userId, record.artw],
+//                     (error, result) => {
+//                         if (error) {
+//                             console.error('Error inserting record:', error);
+//                         } else {
+//                             console.log('insertArtw_has_topic success:', result.insertId);
+//                         }
+//                     }
+//                 );
+//             });
+//         }
+
+//         function insertExample_img(image_name, image_path, artw2_id){
+//             return new Promise((resolve, reject) => {
+//                 dbConn.query(`
+//                 INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?
+//                 `,[image_name, image_path, userId, artw2_id], (error, resul) => {
+//                     if (error) {
+//                         console.error('Error inserting record:', error);
+//                         reject(error);
+//                     } else {
+//                         console.log('insertExample_img success:', resul.insertId);
+//                         resolve(resul.insertId);
+//                     }
+//                 })
+//             })
+//         }
+
+//         const file = req.files.image_file;
+//         if (!file || file.length === 0) {
+//             return res.status(400).json({ error: "No files uploaded" });
+//         }
+//         var filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(10) + ".jpg";
+//         if (fs.existsSync(filename_random)) {
+//             filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(15) + ".jpg";
+//             file.mv(filename_random);
+//         } else {
+//             file.mv(filename_random);
+//         }
+//         const image = filename_random.split("/public")[1];
+//         const image_path = `${req.protocol}://${req.get("host")}${image}`;
+//         const image_name = image_path.split("/images_artwork/")[1];
+
+//         const artworkPromise = insertArtwork(
+//             [artworkDesc], userId
+//         )
+//         artworkPromise.then((artw2_id) => {
+//             insertArtw_has_topic(artworkTopic, artw2_id, userId)
+//             insertExample_img(image_name, image_path, artw2_id)
+//             return res.status(200).json({ status: 'ok'});
+//         }).catch((error) => {
+//             console.log(error);
+//             return res.status(500).json({ status: 'error'});
+//         })
+//     } else {
+//         function insertArtwork(ex_img_id, artworkDesc, userId){
+//             return new Promise((resolve, reject) => {
+//                 dbConn.query(`
+//                 INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?  
+//                 `,[ex_img_id, artworkDesc, userId], (error, results) => {
+//                     if (error) {
+//                         reject(error);
+//                     } else {
+//                         resolve(results.insertId);
+//                     }
+//                 })
+//             })
+//         }
+//         function insertArtw_has_topic(artworkTopic, artw2_id, userId){
+//             const topics = artworkTopic.split(','); // แยกค่า artworkTopic เป็นรายการ
+//             const records = topics.map((topic) => ({
+//                 artworkTopic: topic,
+//                 userId,
+//                 artw: artw2_id,
+//             }));
+        
+//             // ทำการบันทึกลงในฐานข้อมูล โดยวนลูปเพื่อบันทึกแต่ละรายการ
+//             records.forEach((record) => {
+//                 dbConn.query(
+//                     "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
+//                     [record.artworkTopic, record.userId, record.artw],
+//                     (error, result) => {
+//                         if (error) {
+//                             console.error('Error inserting record:', error);
+//                         } else {
+//                             console.log('insertArtw_has_topic success:', result.insertId);
+//                             return res.status(200).json({ status: 'ok'});
+//                         }
+//                     }
+//                 );
+//             });
+//         }
+//         const artworkPromise = insertArtwork(
+//             ex_img_id, artworkDesc, userId
+//         )
+//         artworkPromise.then((artw2_id) => {
+//             insertArtw_has_topic(artworkTopic, artw2_id, userId)
+//         })
+//     }
+// };
+
+exports.galloryAdd = async (req, res) => {
     const userId = req.user.userId;
-    const {ex_img_id, artworkDesc, artworkTopic} = req.body;
+    const { ex_img_id, artworkDesc, artworkTopic } = req.body;
 
-    if (ex_img_id === 'undefined') {
-        function insertArtwork(artworkDesc, userId){
-            return new Promise((resolve, reject) => {
-                dbConn.query(`
-                INSERT INTO artwork SET artw_desc=?, usr_id=?  
-                `,[artworkDesc, userId], (error, results) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        resolve(results.insertId);
-                    }
-                })
-            })
-        }
+    try {
+        if (ex_img_id === 'undefined') {
+            const insertArtwork = (artworkDesc, userId) => {
+                return new Promise((resolve, reject) => {
+                    dbConn.query(`
+                    INSERT INTO artwork SET artw_desc=?, usr_id=?  
+                    `, [artworkDesc, userId], (error, results) => {
+                        if (error) {
+                            reject(error);
+                        } else {
+                            resolve(results.insertId);
+                        }
+                    });
+                });
+            };
 
-        function insertArtw_has_topic(artworkTopic, artw2_id, userId){
-            const topics = artworkTopic.split(','); // แยกค่า artworkTopic เป็นรายการ
-            const records = topics.map((topic) => ({
-                artworkTopic: topic,
-                userId,
-                artw: artw2_id,
-            }));
-        
-            // ทำการบันทึกลงในฐานข้อมูล โดยวนลูปเพื่อบันทึกแต่ละรายการ
-            records.forEach((record) => {
-                dbConn.query(
-                    "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
-                    [record.artworkTopic, record.userId, record.artw],
-                    (error, result) => {
+            const insertArtw_has_topic = (artworkTopic, artw2_id, userId) => {
+                const topics = artworkTopic.split(',');
+                const records = topics.map((topic) => ({
+                    artworkTopic: topic,
+                    userId,
+                    artw: artw2_id,
+                }));
+
+                return Promise.all(records.map((record) => {
+                    return new Promise((resolve, reject) => {
+                        dbConn.query(
+                            "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
+                            [record.artworkTopic, record.userId, record.artw],
+                            (error, result) => {
+                                if (error) {
+                                    console.error('Error inserting record:', error);
+                                    reject(error);
+                                } else {
+                                    console.log('insertArtw_has_topic success:', result.insertId);
+                                    resolve();
+                                }
+                            }
+                        );
+                    });
+                }));
+            };
+
+            const insertExample_img = (image_name, image_path, artw2_id) => {
+                return new Promise((resolve, reject) => {
+                    dbConn.query(`
+                    INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?
+                    `, [image_name, image_path, userId, artw2_id], (error, resul) => {
                         if (error) {
                             console.error('Error inserting record:', error);
+                            reject(error);
                         } else {
-                            console.log('insertArtw_has_topic success:', result.insertId);
+                            console.log('insertExample_img success:', resul.insertId);
+                            resolve(resul.insertId);
                         }
-                    }
-                );
-            });
-        }
+                    });
+                });
+            };
 
-        function insertExample_img(image_name, image_path, artw2_id){
-            return new Promise((resolve, reject) => {
-                dbConn.query(`
-                INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?
-                `,[image_name, image_path, userId, artw2_id], (error, resul) => {
-                    if (error) {
-                        console.error('Error inserting record:', error);
-                        reject(error);
-                    } else {
-                        console.log('insertExample_img success:', resul.insertId);
-                        resolve(resul.insertId);
-                    }
-                })
-            })
-        }
+            const file = req.files.image_file;
+            if (!file || file.length === 0) {
+                return res.status(400).json({ error: "No files uploaded" });
+            }
+            var filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(10) + ".jpg";
+            if (fs.existsSync(filename_random)) {
+                filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(15) + ".jpg";
+                file.mv(filename_random);
+            } else {
+                file.mv(filename_random);
+            }
+            const image = filename_random.split("/public")[1];
+            const image_path = `${req.protocol}://${req.get("host")}${image}`;
+            const image_name = image_path.split("/images_artwork/")[1];
 
-        const file = req.files.image_file;
-        if (!file || file.length === 0) {
-            return res.status(400).json({ error: "No files uploaded" });
-        }
-        var filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(10) + ".jpg";
-        if (fs.existsSync(filename_random)) {
-            filename_random = __dirname.split("controllers")[0] + "/public/images_artwork/" + randomstring.generate(15) + ".jpg";
-            file.mv(filename_random);
+            const artw2_id = await insertArtwork(artworkDesc, userId);
+            await insertArtw_has_topic(artworkTopic, artw2_id, userId);
+            await insertExample_img(image_name, image_path, artw2_id);
+
+            return res.status(200).json({ status: 'ok' });
         } else {
-            file.mv(filename_random);
-        }
-        const image = filename_random.split("/public")[1];
-        const image_path = `${req.protocol}://${req.get("host")}${image}`;
-        const image_name = image_path.split("/images_artwork/")[1];
-
-        const artworkPromise = insertArtwork(
-            [artworkDesc], userId
-        )
-        artworkPromise.then((artw2_id) => {
-            insertArtw_has_topic(artworkTopic, artw2_id, userId)
-            insertExample_img(image_name, image_path, artw2_id)
-            return res.status(200).json({ status: 'ok'});
-        }).catch((error) => {
-            console.log(error);
-            return res.status(500).json({ status: 'error'});
-        })
-    } else {
-        function insertArtwork(ex_img_id, artworkDesc, userId){
-            return new Promise((resolve, reject) => {
-                dbConn.query(`
-                INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?  
-                `,[ex_img_id, artworkDesc, userId], (error, results) => {
-                    if (error) {
-                        reject(error);
-                    } else {
-                        resolve(results.insertId);
-                    }
-                })
-            })
-        }
-        function insertArtw_has_topic(artworkTopic, artw2_id, userId){
-            const topics = artworkTopic.split(','); // แยกค่า artworkTopic เป็นรายการ
-            const records = topics.map((topic) => ({
-                artworkTopic: topic,
-                userId,
-                artw: artw2_id,
-            }));
-        
-            // ทำการบันทึกลงในฐานข้อมูล โดยวนลูปเพื่อบันทึกแต่ละรายการ
-            records.forEach((record) => {
-                dbConn.query(
-                    "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
-                    [record.artworkTopic, record.userId, record.artw],
-                    (error, result) => {
+            const insertArtwork = (ex_img_id, artworkDesc, userId) => {
+                return new Promise((resolve, reject) => {
+                    dbConn.query(`
+                    INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?  
+                    `, [ex_img_id, artworkDesc, userId], (error, results) => {
                         if (error) {
-                            console.error('Error inserting record:', error);
+                            reject(error);
                         } else {
-                            console.log('insertArtw_has_topic success:', result.insertId);
-                            return res.status(200).json({ status: 'ok'});
+                            resolve(results.insertId);
                         }
-                    }
-                );
-            });
+                    });
+                });
+            };
+
+            const insertArtw_has_topic = (artworkTopic, artw2_id, userId) => {
+                const topics = artworkTopic.split(',');
+                const records = topics.map((topic) => ({
+                    artworkTopic: topic,
+                    userId,
+                    artw: artw2_id,
+                }));
+
+                return Promise.all(records.map((record) => {
+                    return new Promise((resolve, reject) => {
+                        dbConn.query(
+                            "INSERT INTO artwork_has_topic (tp_id, usr_id, artw2_id) VALUES (?, ?, ?)",
+                            [record.artworkTopic, record.userId, record.artw],
+                            (error, result) => {
+                                if (error) {
+                                    console.error('Error inserting record:', error);
+                                    reject(error);
+                                } else {
+                                    console.log('insertArtw_has_topic success:', result.insertId);
+                                    resolve();
+                                }
+                            }
+                        );
+                    });
+                }));
+            };
+
+            const artw2_id = await insertArtwork(ex_img_id, artworkDesc, userId);
+            await insertArtw_has_topic(artworkTopic, artw2_id, userId);
+
+            return res.status(200).json({ status: 'ok' });
         }
-        const artworkPromise = insertArtwork(
-            ex_img_id, artworkDesc, userId
-        )
-        artworkPromise.then((artw2_id) => {
-            insertArtw_has_topic(artworkTopic, artw2_id, userId)
-        })
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ status: 'error' });
     }
 };
 
-exports.galloryUpdate = (req, res) => {
-    const artw_id = req.params.id;
-    const {desc, topic} = req.body;
-    dbConn.query(`
-    UPDATE artwork SET WHERE artw_id=?`, [],(error, result) => {
 
-    })
+exports.galloryUpdate = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const artw_id = req.params.id;
+        const { detail, artworkTopic } = req.body;
 
+        async function addNewTopic(userId, artworkTopic, artw_id) {
+            const topics = artworkTopic.split(',');
+            const records = topics.map((topic) => ({
+                userId,
+                artworkTopic: topic,
+                artw: artw_id,
+            }));
+
+            for (const record of records) {
+                await new Promise((resolve, reject) => {
+                    dbConn.query(
+                        'INSERT INTO artwork_has_topic (usr_id, tp_id, artw2_id) VALUES (?, ?, ?)',
+                        [record.userId, record.artworkTopic, record.artw],
+                        (error, result) => {
+                            if (error) {
+                                console.error('Error inserting record:', error);
+                                reject(error);
+                            } else {
+                                resolve();
+                            }
+                        }
+                    );
+                });
+            }
+        }
+
+        await new Promise((resolve, reject) => {
+            dbConn.query(
+                'DELETE FROM artwork_has_topic WHERE usr_id = ? AND artw2_id = ?',
+                [userId, artw_id],
+                (errors, delOldTopic_results) => {
+                    if (errors) {
+                        console.log(errors);
+                        reject(errors);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+
+        await new Promise((resolve, reject) => {
+            dbConn.query(
+                'UPDATE artwork SET artw_desc=?, updated_at=? WHERE artw_id=? AND usr_id=?',
+                [detail, date, artw_id, userId],
+                (error, updateDetail_results) => {
+                    if (error) {
+                        console.log(error);
+                        reject(error);
+                    } else {
+                        resolve();
+                    }
+                }
+            );
+        });
+
+        await addNewTopic(userId, artworkTopic, artw_id);
+
+        res.status(200).json({ status: 'ok' });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ status: 'error', message: 'An error occurred' });
+    }
 };
 
 exports.galloryDelete = (req, res) => {
     const artwork_id = req.params.id;
-    console.log(artwork_id);
     try {
         dbConn.query(
           "UPDATE artwork SET deleted_at = ? WHERE artw_id = ?",

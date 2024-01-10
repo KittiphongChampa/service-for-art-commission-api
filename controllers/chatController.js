@@ -232,38 +232,71 @@ exports.getMessages = (req, res, next) => {
       console.log('ออเดอร์ไอดีนี้เป็นไม่ใช่ 0 = แชทออเดอร์')
 
       //ที่ใช้ left join เพราะตารางแมสเซจบางอันไม่มี step id พอเลฟจอยแล้วแมสเสจที่ไม่มีสเตปไอดีตรงกันแต่ยังมีออเดอร์ไอดีตรงกันก็ได้
-      dbConn.query(
-        `SELECT messages.id AS msgId, sender, receiver, message_text, created_at,messages.step_id,cms_steps.checked_at,cms_steps.step_name,cms_steps.step_type,messages.od_id, messages.checked,messages.status,
-        (SELECT MAX(messages.step_id) FROM messages JOIN cms_steps ON messages.step_id = cms_steps.step_id WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
-      FROM messages
-      LEFT JOIN cms_steps ON cms_steps.od_id = messages.od_id AND messages.step_id = cms_steps.step_id
-      WHERE (sender IN (?, ?) OR sender IS NULL) AND (receiver IN (?, ?) OR receiver IS NULL) AND (messages.od_id = ?) AND (messages.deleted_at IS NULL)` ,
-        //สำหรับข้อความจากระบบ sender reciever จะเป็น null 
-        [from, to, from, to, od_id],
-        function (error, results) {
-          const projectedMessages = results.map((row) => {
-            // console.log(row)
-            return {
-              fromSelf: row.sender?.toString() == from,
-              message: row.message_text,
-              sender: row.sender,
-              created_at: row.created_at,
-              checked_at: row.checked_at,
-              step_name: row.step_name,
-              step_type: row.step_type,
-              step_id: row.step_id,
-              od_id: row.od_id,
-              status: row.status,
-              checked: row.checked,
-              isSystemMsg: row.step_id !== 0,
-              wip_sent: row.wip_sent,
-              msgId: row.msgId
-              // sender: row.sender
-            };
-          });
-          res.json(projectedMessages);
+      // const resImg = dbConn.query(
+      //   `SELECT * FROM attach_img 
+      //   JOIN messages ON messages.id = attach_img.chat_id
+      //   WHERE messages.od_id = ?`, [od_id])
+
+      const resImg = `
+        SELECT * FROM attach_img 
+        JOIN messages ON messages.id = attach_img.chat_id
+        WHERE messages.od_id = ?
+      `
+
+      dbConn.query(resImg,[od_id], (error, resImgResult) => {
+        if (error) {
+          console.log(error);
         }
-      );
+        // console.log("resImgResult : ",resImgResult);
+        dbConn.query(
+          `SELECT messages.id AS msgId, sender, receiver, message_text, created_at,messages.step_id,cms_steps.checked_at,cms_steps.step_name,cms_steps.step_type,messages.od_id, messages.checked,messages.status,
+          (SELECT MAX(messages.step_id) FROM messages JOIN cms_steps ON messages.step_id = cms_steps.step_id WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
+        FROM messages
+        LEFT JOIN cms_steps ON cms_steps.od_id = messages.od_id AND messages.step_id = cms_steps.step_id
+        WHERE (sender IN (?, ?) OR sender IS NULL) AND (receiver IN (?, ?) OR receiver IS NULL) AND (messages.od_id = ?) AND (messages.deleted_at IS NULL)` ,
+          //สำหรับข้อความจากระบบ sender reciever จะเป็น null 
+          [from, to, from, to, od_id],
+          function (error, results) {
+            const projectedMessages = results.map((row) => {
+              let imgArray = []
+              // console.log(resImg)
+  
+              if(resImgResult){
+                resImgResult.map((r)=>{ 
+                  if(r.chat_id == row.msgId){
+                    imgArray.push(r.att_img_path)
+                  }
+                })
+              }
+              
+              // console.log(row)
+              return {
+                img : imgArray,
+                fromSelf: row.sender?.toString() == from,
+                message: row.message_text,
+                sender: row.sender,
+                created_at: row.created_at,
+                checked_at: row.checked_at,
+                step_name: row.step_name,
+                step_type: row.step_type,
+                step_id: row.step_id,
+                od_id: row.od_id,
+                status: row.status,
+                checked: row.checked,
+                isSystemMsg: row.step_id !== 0,
+                wip_sent: row.wip_sent,
+                msgId: row.msgId
+                // sender: row.sender
+              };
+            });
+            console.log(projectedMessages)
+            res.json(projectedMessages);
+
+
+          }
+        );
+      } )
+      
 
     }
 
@@ -285,7 +318,7 @@ exports.addMessages = (req, res, next) => {
       // ข้อมูลจากระบบ
       if (step_id !== undefined && checked !== undefined) {
         // order_id = null
-        console.log(req.body);
+        console.log('dssdsdsdsd=',req.body);
         dbConn.query(
           "INSERT INTO messages (sender, receiver, message_text,od_id,step_id,checked,status) VALUES (?, ?, ?, ?, ?, ?,?)",
           [from, to, message, order_id, step_id, checked, status],

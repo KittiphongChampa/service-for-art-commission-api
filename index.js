@@ -37,7 +37,7 @@ io.on('connection', (socket) => {
     const sendUserSocket = onlineUsers.get(data.to);  //ดึงค่า socket.id ของผู้ใช้งานที่เป็นผู้รับจาก Map onlineUsers โดยใช้ userId เป็นคีย์
     if (sendUserSocket) {//ตรวจสอบว่ามี socket.id ของผู้ใช้งานที่เป็นผู้รับหรือไม่
       //socket.to(sendUserSocket).emit("msg-receive", data.msg);//ส่งเหตุการณ์ "msg-receive" พร้อมกับข้อความdata.msg` ไปยังผู้รับผ่านการใช้งาน socket
-      socket.to(sendUserSocket).emit("msg-receive", { msgId:data.msgId, msg: data.msg, od_id: data.od_id, to: data.to, step_id: data.step_id, step_name: data.step_name, status: data.status, checked: data.checked, isSystemMsg: data.isSystemMsg, current_time: data.current_time  });
+      socket.to(sendUserSocket).emit("msg-receive", { img:data.img, msgId:data.msgId, msg: data.msg, od_id: data.od_id, to: data.to, step_id: data.step_id, step_name: data.step_name, status: data.status, checked: data.checked, isSystemMsg: data.isSystemMsg, current_time: data.current_time  });
     }
   });
   
