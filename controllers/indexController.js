@@ -16,7 +16,7 @@ let bangkokTime = date.toLocaleString("en-US", options);
 exports.ArtistIndex = (req, res) => {
     const { iFollowing } = req.body;
     if (iFollowing=="") {
-        console.log('ไม่มีนักวาดที่ติดตามในหน้าแรก');
+        return res.status(200).json({ results: 'คุณไม่มีนักวาดที่ติดตาม' });
     } else {
         const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
 

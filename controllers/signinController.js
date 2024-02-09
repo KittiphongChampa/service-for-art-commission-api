@@ -164,14 +164,16 @@ exports.register = (req, res) => {
                         email: users[0].urs_email,
                         userId: users[0].id,
                         role: users[0].urs_type,
+                        type: 'user',
                       },
                       secret_token,
-                      { expiresIn: "1h" }
+                      { expiresIn: "3h" }
                     ); //กำหนดระยะเวลาในการใช้งาน มีอายุ 1 ชม
                     return res.json({
                       status: "ok",
                       message: "Register success",
                       token,
+                      type: 'user'
                     });
                   } else {
                     return res.json({
@@ -223,7 +225,7 @@ exports.login = (req, res) => {
                         secret_token,
                         { expiresIn: "3h" }
                       ); //กำหนดระยะเวลาในการใช้งาน มีอายุ 3 ชม
-                      return res.json({ status: "ok", message: "login success", token });
+                      return res.json({ status: "ok", message: "login success", token, type: 'user' });
                     } else {
                       return res.json({ status: "error", message: "login failed" });
                     }
@@ -245,11 +247,12 @@ exports.login = (req, res) => {
                       email: admins[0].admin_email,
                       adminId: admins[0].admin_id,
                       role: admins[0].admin_type,
+                      type: 'admin'
                     },
                     secret_token,
                     { expiresIn: "3h" }
                   ); //กำหนดระยะเวลาในการใช้งาน มีอายุ 3 ชม
-                  return res.json({ status: "ok_admin", message: "login success", token });
+                  return res.json({ status: "ok", message: "login success", token, type: 'admin' });
                 } else {
                   return res.json({ status: "error", message: "login failed" });
                 }

@@ -28,12 +28,11 @@ exports.chatPartner = (req, res) => {
         "SELECT id, urs_name, urs_profile_img  FROM users WHERE id=?",
         [partnerID],
         function (error, partner) {
-          console.log(partner);
+          // console.log(partner);
           if (error) {
             return res.json({ status: "error", message: "status error" });
-          }else{
-            return res.json(partner);
           }
+          return res.json(partner);
         }
       );
     } catch (err) {
@@ -161,11 +160,34 @@ exports.index = (req, res) => {
 // };
 
 exports.allchat = (req, res) => {
-  // const myId = req.params.id;
-  // const orderId = req.params.order_id;
   const myId = req.user.userId;
+  // const sql1 = `
+  // SELECT 
+  //   cms_order.artist_id,
+  //   messages.od_id,
+  //   users.id,
+  //   users.urs_name,
+  //   users.urs_profile_img,
+  //   messages.sender,
+  //   messages.receiver,
+  //   (SELECT MAX(sub_messages.step_id) FROM messages AS sub_messages WHERE messages.od_id = sub_messages.od_id) AS current_step,
+  //   (SELECT step_name FROM cms_steps WHERE current_step = cms_steps.step_id) AS current_step_name,
+  //   messages.od_id,
+  //   messages.step_id,
+  //   MAX(messages.created_at) AS last_message_time,
+  //   IFNULL(messages.od_id, 0) AS od_id
+  // FROM users
+  // JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
+  // LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
+  // LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
+  // WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
+  // GROUP BY users.id, messages.sender, messages.receiver, messages.od_id, messages.step_id
+  // ORDER BY last_message_time DESC;
+
+  // `
+
   const sql1 = `
-  SELECT 
+    SELECT 
     cms_order.artist_id,
     messages.od_id,
     users.id,
@@ -173,25 +195,30 @@ exports.allchat = (req, res) => {
     users.urs_profile_img,
     messages.sender,
     messages.receiver,
-    (SELECT MAX(sub_messages.step_id) FROM messages AS sub_messages WHERE messages.od_id = sub_messages.od_id) AS current_step,
-    (SELECT step_name FROM cms_steps WHERE current_step = cms_steps.step_id) AS current_step_name,
+    (
+        SELECT MAX(sub_messages.step_id) 
+        FROM messages AS sub_messages 
+        WHERE messages.od_id = sub_messages.od_id
+    ) AS current_step,
+    (
+        SELECT step_name 
+        FROM cms_steps 
+        WHERE current_step = cms_steps.step_id
+    ) AS current_step_name,
     messages.od_id,
     messages.step_id,
     MAX(messages.created_at) AS last_message_time,
     IFNULL(messages.od_id, 0) AS od_id
-  FROM users
-  JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-  LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-  LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-  WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-  GROUP BY users.id, messages.sender, messages.receiver, messages.od_id, messages.step_id
-  ORDER BY last_message_time DESC;
+    FROM users
+    JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
+    LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
+    LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
+    WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
+    GROUP BY users.id, messages.sender, messages.receiver, messages.od_id, messages.step_id
+    ORDER BY last_message_time DESC;
 
-  `
-  dbConn.query(sql1, // เพิ่ม ORDER BY เพื่อเรียงลำดับตามเวลาของข้อความที่ถูกส่งล่าสุด
-    //JOIN messages ON ((users.id = messages.receiver) OR (users.id = messages.sender)) หรือ od_id ที่มี users.id = cms_order.customer_id หรือ cms_order.artist_id
-    //group by od_id,users.id
-    //หลังจากที่มีการจองแล้ว ให้เพิ่มข้อความระบบเข้าตาราง message เข้าฐานข้อมูล จากนั้นค่อยเปิดแชทขึ้นมา
+    `
+  dbConn.query(sql1, 
     [myId, myId, myId],
     function (error, users) {
       if (error) {
@@ -209,7 +236,7 @@ exports.getMessages = (req, res, next) => {
   try {
     const { from, to, od_id } = req.body;
     if (od_id == 0 || od_id == null || od_id == undefined) {
-      console.log('ออเดอร์ไอดีนี้เป็น 0 = แชทส่วนตัว')
+      // console.log('ออเดอร์ไอดีนี้เป็น 0 = แชทส่วนตัว')
       dbConn.query(
         `SELECT sender, receiver, message_text, created_at 
       FROM messages
@@ -229,20 +256,11 @@ exports.getMessages = (req, res, next) => {
         }
       );
     } else {
-      console.log('ออเดอร์ไอดีนี้เป็นไม่ใช่ 0 = แชทออเดอร์')
-
-      //ที่ใช้ left join เพราะตารางแมสเซจบางอันไม่มี step id พอเลฟจอยแล้วแมสเสจที่ไม่มีสเตปไอดีตรงกันแต่ยังมีออเดอร์ไอดีตรงกันก็ได้
-      // const resImg = dbConn.query(
-      //   `SELECT * FROM attach_img 
-      //   JOIN messages ON messages.id = attach_img.chat_id
-      //   WHERE messages.od_id = ?`, [od_id])
-
       const resImg = `
         SELECT * FROM attach_img 
         JOIN messages ON messages.id = attach_img.chat_id
         WHERE messages.od_id = ?
       `
-
       dbConn.query(resImg,[od_id], (error, resImgResult) => {
         if (error) {
           console.log(error);
@@ -268,8 +286,6 @@ exports.getMessages = (req, res, next) => {
                   }
                 })
               }
-              
-              // console.log(row)
               return {
                 img : imgArray,
                 fromSelf: row.sender?.toString() == from,
@@ -289,17 +305,11 @@ exports.getMessages = (req, res, next) => {
                 // sender: row.sender
               };
             });
-            console.log(projectedMessages)
             res.json(projectedMessages);
-
-
           }
         );
       } )
-      
-
     }
-
   } catch (ex) {
     next(ex);
   }
@@ -318,13 +328,12 @@ exports.addMessages = (req, res, next) => {
       // ข้อมูลจากระบบ
       if (step_id !== undefined && checked !== undefined) {
         // order_id = null
-        console.log('dssdsdsdsd=',req.body);
+        // console.log('dssdsdsdsd=',req.body);
         dbConn.query(
           "INSERT INTO messages (sender, receiver, message_text,od_id,step_id,checked,status) VALUES (?, ?, ?, ?, ?, ?,?)",
           [from, to, message, order_id, step_id, checked, status],
           function (error, result) {
             if (result.affectedRows > 0) {
-              console.log('เข้า');
               return res.json({ msg: "Message added successfully." });
             } else {
               console.log(error);

@@ -389,40 +389,44 @@ exports.latestCommission = (req, res) => {
 
 exports.artistCommission = (req, res) => {
     const myId = req.user.userId;
-    const myFollowings = [];
+    let myFollowings = [];
     try {
       dbConn.query(
         "SELECT * FROM follow WHERE follower_id=?",
         [myId],
         function (error, results) {
+          let query = '';
           if (error) {
             console.log(error);
+          } else {
+            for (let i = 0; i < results.length; i++) {
+              const followingId = results[i].following_id;
+              myFollowings.push(followingId);
+            }
+            if (myFollowings.length > 0) {
+            // ตรงนี้คุณมีรายการ myFollowings ที่เป็นรายการ ID ของผู้ที่ฉันกำลังติดตาม
+            // ใช้ myFollowings ในคำสั่ง SQL ด้านล่างเพื่อค้นหาข้อมูล commission ของพวกเขา
+              query = `
+                SELECT commission.cms_id, commission.cms_name, commission.cms_desc, 
+                example_img.ex_img_path, example_img.status, users.id, users.urs_name,
+                package_in_cms.pkg_id, package_in_cms.pkg_min_price
+                FROM commission
+                JOIN example_img ON commission.cms_id = example_img.cms_id
+                JOIN users ON commission.usr_id = users.id
+                JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
+                WHERE commission.usr_id IN (?) AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL
+                ORDER BY commission.created_at DESC LIMIT 15
+              `;
+            } else {
+              return res.status(200).json({ status: "ok", commissions: 'คุณไม่มีนักวาดที่ติดตาม' });
+            }
           }
-          for (let i = 0; i < results.length; i++) {
-            const followingId = results[i].following_id;
-            myFollowings.push(followingId);
-          }
-          // ตรงนี้คุณมีรายการ myFollowings ที่เป็นรายการ ID ของผู้ที่ฉันกำลังติดตาม
-          // ใช้ myFollowings ในคำสั่ง SQL ด้านล่างเพื่อค้นหาข้อมูล commission ของพวกเขา
-          const query = `
-            SELECT commission.cms_id, commission.cms_name, commission.cms_desc, 
-            example_img.ex_img_path, example_img.status, users.id, users.urs_name,
-            package_in_cms.pkg_id, package_in_cms.pkg_min_price
-            FROM commission
-            JOIN example_img ON commission.cms_id = example_img.cms_id
-            JOIN users ON commission.usr_id = users.id
-            JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-            WHERE commission.usr_id IN (?) AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL
-            ORDER BY commission.created_at DESC LIMIT 15
-          `;
-          
           dbConn.query(query, [myFollowings], function (error, results) {
             if (error) {
               console.log(error);
               return res.status(500).json({ status: "error", message: "Database error" });
             }
             // ตอนนี้คุณมีผลลัพธ์จากการค้นหา commission ของผู้ที่ฉันกำลังติดตาม
-            // console.log(results);
             const uniqueCmsIds = new Set();
             const uniqueResults = [];
           
@@ -448,7 +452,7 @@ exports.artistCommission = (req, res) => {
       );
     } catch (error) {
       console.log(error);
-      return res.status(500).json({ status: "error", message: "Internal server error" });
+      return res.status(500).json({ status: "error", message: "artistCommission error" });
     }
 };
 

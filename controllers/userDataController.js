@@ -33,7 +33,7 @@ exports.index = (req, res) => {
             return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
           }
           // const urs_token = decrypt(users[0].urs_token);
-          return res.json({ status: "ok", users });
+          return res.json({ status: "ok", users, type: 'user'});
         }
       );
     } catch (err) {

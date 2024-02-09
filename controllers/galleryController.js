@@ -422,11 +422,13 @@ exports.gallorylatest = (req, res) => {
         artwork ON example_img.artw2_id = artwork.artw_id
     WHERE
         example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
-    ORDER BY created_at DESC
-    LIMIT 15;
+
     `;
+    // ORDER BY created_at DESC
+    // LIMIT 15;
     dbConn.query(query, function (error, results) {
         if (error) {
+            console.log('เข้าาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาา');
             console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
             return res.json({ status: "error", message: "status error" });
         }
@@ -510,43 +512,50 @@ exports.galloryDetail = (req, res) => {
 
 exports.galloryIfollow = (req, res) => {
     const myId = req.user.userId;
-    const myFollowings = [];
+    let myFollowings = [];
     try {
         dbConn.query(
             "SELECT * FROM follow WHERE follower_id=?",
             [myId],
             function (error, results) {
+                let query = '';
                 if (error) {
                     console.log(error);
                 }
-                for (let i = 0; i < results.length; i++) {
-                    const followingId = results[i].following_id;
-                    myFollowings.push(followingId);
+                else {
+                    for (let i = 0; i < results.length; i++) {
+                        const followingId = results[i].following_id;
+                        myFollowings.push(followingId);
+                    }
+                    if (myFollowings.length > 0) {
+                        query = `
+                            SELECT 
+                                artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+                                example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
+                            FROM 
+                                artwork
+                            JOIN 
+                                example_img ON artwork.ex_img_id = example_img.ex_img_id
+                        
+                            WHERE 
+                                artwork.deleted_at IS NULL AND artwork.usr_id IN (?)
+                            UNION
+                            SELECT
+                                example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+                                example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+                            FROM
+                                example_img
+                            JOIN
+                                artwork ON example_img.artw2_id = artwork.artw_id
+                            WHERE
+                                example_img.cms_id IS NULL AND example_img.usr_id IN (?) AND artwork.deleted_at IS NULL
+                            ORDER BY created_at DESC
+                            LIMIT 15;
+                        `
+                    } else {
+                        return res.status(200).json({ status: "ok", results : 'คุณไม่มีนักวาดที่ติดตาม' });
+                    }
                 }
-                const query = `
-                    SELECT 
-                        artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
-                        example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
-                    FROM 
-                        artwork
-                    JOIN 
-                        example_img ON artwork.ex_img_id = example_img.ex_img_id
-                
-                    WHERE 
-                        artwork.deleted_at IS NULL AND artwork.usr_id IN (?)
-                    UNION
-                    SELECT
-                        example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
-                        example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
-                    FROM
-                        example_img
-                    JOIN
-                        artwork ON example_img.artw2_id = artwork.artw_id
-                    WHERE
-                        example_img.cms_id IS NULL AND example_img.usr_id IN (?) AND artwork.deleted_at IS NULL
-                    ORDER BY created_at DESC
-                    LIMIT 15;
-                `
                 dbConn.query(query, [myFollowings, myFollowings] , (error, results) => {
                     if (error) {
                         console.log(error);
@@ -625,7 +634,7 @@ exports.galloryAll = (req, res) => {
     dbConn.query(sqlQuery, (error, results) => {
         if (error) {
           console.log(error);
-          return res.status(500).json({ message: 'Internal Server Error', error: error.message });
+          return res.status(500).json({ message: 'galloryAll Error', error: error.message });
         }
         return res.status(200).json({ results, message: 'Success' });
     });

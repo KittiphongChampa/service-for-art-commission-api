@@ -12,6 +12,7 @@ const reportController = require("../controllers/reportController");
 const cmsController = require("../controllers/cmsController");
 const orderController = require("../controllers/orderController");
 const artistDashboardController = require("../controllers/artistDashboardController");
+const notificationController = require("../controllers/notificationController");
 
 const auth = require("../middleware/auth");
 
@@ -100,6 +101,20 @@ router.post("/faq/add", auth.verifyToken, adminController.addfaq);
 router.patch("/faq/update/:id", adminController.updatefaq);
 router.patch("/faq/delete/:id", adminController.deletefaq);
 
+
+router.get("/all-id-admin", adminController.alladminIds);//ตอนนี้ไม่ได้ใช้
+
+
+//admin-noti
+router.post("/admin-noti-artwork/add", notificationController.addNotiArtwork);
+router.get("/getnotimsg", notificationController.getnotimsg);
+
+//user-noti
+router.get("/noti/getmsg", auth.verifyToken, notificationController.getNoti)
+router.post("/noti/order/add", notificationController.notiAdd);
+router.put("/noti/readed/:id", notificationController.notiReaded)
+
+
 //admin-dashboard
 router.get("/getYearData", adminController.getYearData);
 router.get("/getOutOfYearData", adminController.getOutOfYearData);
@@ -123,10 +138,11 @@ router.get("/getAritisIFollow", indexController.ArtistIFollow);
 router.get("/getTopic", indexController.getTopic);
 
 //reportController
-router.post("/send-report", reportController.sendReport);
 router.get("/allreport", reportController.allReport);
 router.get("/allApproveReport", reportController.allApproveReport);
 router.get("/allDeletedReport", reportController.allDeletedReport);
+router.post("/report/artwork/:id", auth.verifyToken, reportController.reportArtwork);
+router.post("/report/commission/:id", auth.verifyToken, reportController.reportCommission);
 
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);

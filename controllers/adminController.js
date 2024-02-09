@@ -33,7 +33,7 @@ exports.admin =(req, res) => {
           if (admins[0].admin_id !== adminId) {
             return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
           }
-          return res.json({ status: "ok", admins  });
+          return res.json({ status: "ok", admins, type: 'admin'  });
         }
       );
     } catch (err) {
@@ -836,5 +836,16 @@ exports.problemCommissionNotApprove = (req, res) => {
     } else {
       return res.json({ status: "error", message: error });
     }
+  })
+}
+
+exports.alladminIds = (req, res) => {
+  dbConn.query(`SELECT admin_id FROM admins WHERE deleted_at IS NULL`, function(error, results){
+    if (error) {
+      console.log(error);
+    }
+    const adminIds = results.map(item => item.admin_id).join(',');
+
+    return res.status(200).json({ status: "ok", adminIds });
   })
 }
