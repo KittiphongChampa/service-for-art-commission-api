@@ -88,11 +88,11 @@ exports.notiAdd = (req, res) => {
 }
 
 exports.notiReaded = (req, res) => {
-    const notiId = req.params.id
+    const {keyData, action} = req.query
     const sql = `
-        UPDATE notification SET noti_read=? WHERE noti_id=?
+        UPDATE notification SET noti_read=? WHERE od_id=? AND noti_text=?
     `
-    dbConn.query(sql, [1, notiId], function (error, results){
+    dbConn.query(sql, [1, keyData, action], function (error, results){
         if (error) {
             console.log(error);
             return res.status(500).json({error})

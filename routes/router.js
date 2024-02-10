@@ -112,7 +112,7 @@ router.get("/getnotimsg", notificationController.getnotimsg);
 //user-noti
 router.get("/noti/getmsg", auth.verifyToken, notificationController.getNoti)
 router.post("/noti/order/add", notificationController.notiAdd);
-router.put("/noti/readed/:id", notificationController.notiReaded)
+router.put("/noti/readed", notificationController.notiReaded)
 
 
 //admin-dashboard

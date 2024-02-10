@@ -33,18 +33,19 @@ const nDate = new Date().toLocaleString('en-US', {
   timeZone: 'Asia/Bangkok'
 });
 
-global.onlineUsers = new Map(); //สร้างตัวแปร global onlineUsers เพื่อเก็บข้อมูลผู้ใช้งานที่ออนไลน์ โดยใช้ Map ในการเก็บข้อมูลดังกล่าว
+const onlineAdmins = new Map();
+global.onlineUsers = new Map(); 
 io.on('connection', (socket) => {
-  global.chatSocket = socket; //กำหนด socket ที่เชื่อมต่อเข้ามาให้เป็นตัวแปร global chatSocket เพื่อใช้ในการสื่อสารกับ client อื่น ๆ ในภายหลัง
-  socket.on("add-user", (userId) => { //รอรับเหตุการณ์ "add-user" จาก client เพื่อเพิ่มผู้ใช้งานใหม่ในรายชื่อผู้ใช้งานที่ออนไลน์ โดยใช้ userId เป็นตัวระบุ
-    onlineUsers.set(userId, socket.id); //เพิ่มข้อมูลผู้ใช้งานใน Map onlineUsers โดยใช้ userId เป็นคีย์และ socket.id เป็นค่า
+  global.chatSocket = socket; 
+  socket.on("add-user", (userId) => { 
+    onlineUsers.set(userId, socket.id);
   });
-  // console.log(onlineUsers);
-  // console.log(chatSocket);
+  socket.on("add-admin", (adminId) => {
+    onlineAdmins.set(adminId, socket.id)
+  })
 
-  
-  socket.on("disconnect", () => { // เมื่อผู้ใช้หรือ client ตัดการเชื่อมต่อ
-    // ทำสิ่งที่ต้องการเมื่อผู้ใช้ตัดการเชื่อมต่อออกไป  เช่น ลบผู้ใช้ออกจากรายการผู้ใช้ที่ออนไลน์
+
+  socket.on("disconnect", () => { 
     onlineUsers.forEach((value, key) => {
       if (value === socket.id) {
         // onlineUsers.delete(key);
@@ -53,11 +54,11 @@ io.on('connection', (socket) => {
     });
   });
 
-  socket.on("send-msg", (data) => { //รอรับเหตุการณ์ "send-msg" จาก client เพื่อส่งข้อความไปยังผู้ใช้งานที่เป็นผู้รับ
-    const sendUserSocket = onlineUsers.get(data.to);  //ดึงค่า socket.id ของผู้ใช้งานที่เป็นผู้รับจาก Map onlineUsers โดยใช้ userId เป็นคีย์
-    // console.log(data);
+  socket.on("send-msg", (data) => { 
+    console.log(data);
+    const sendUserSocket = onlineUsers.get(data.to); 
+
     if (sendUserSocket) {
-      //socket.to(sendUserSocket).emit("msg-receive", data.msg);//ส่งเหตุการณ์ "msg-receive" พร้อมกับข้อความdata.msg` ไปยังผู้รับผ่านการใช้งาน socket
       socket.to(sendUserSocket).emit("msg-receive", { img:data.img, msgId:data.msgId, msg: data.msg, od_id: data.od_id, to: data.to, step_id: data.step_id, step_name: data.step_name, status: data.status, checked: data.checked, isSystemMsg: data.isSystemMsg, current_time: data.current_time, from : data.from  });
     } else {
       console.log("ไม่มีคนรับ");
@@ -78,40 +79,160 @@ io.on('connection', (socket) => {
     }
   });
 
-
   // users-user
   // แจ้งเตือนเมื่อนักวาดยอมรับ
   socket.on('acceptOrder', (data) => {
-    console.log(data);
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
-        data: {
-          ...data,
-          created_at: nDate,
-        },
+        data: { ...data, created_at: nDate, },
       });
     } else{
       console.log("ไม่ส่งข้อความ");
     }
   });
+
+  // แจ้งเตือนเมื่อนักวาดปฏิเสธ
+  socket.on('cancelOrder', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: {...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนนักวาดส่งภาพร่าง
+  socket.on('sketchOrder', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: {...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนการจ่ายเงินครั้งที่ 1
+  socket.on('paymentFirsttime', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: {...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนการจ่ายเงินครั้งที่ 2
+  socket.on('paymentSecondtime', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: {...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนนักวาดส่งภาพ final
+  socket.on('completeOrder', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: {...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
 
   // users-artis
   // การจ้างงาน
   socket.on('addOrder', (data) => {
-    console.log('addOrder : ',data);
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
-        data: {
-          ...data,
-          created_at: nDate,
-        },
+        data: { ...data,created_at: nDate, },
       });
     } else{
       console.log("ไม่ส่งข้อความ");
     }
   });
+
+  // แจ้งเตือนเมื่อลูกค้ายอมรับภาพร่าง
+  socket.on('acceptsketchOrder', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data,created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนการตั้งราคา
+  socket.on('setPriceOrder', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data,created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนลูกค้าชำระเงินครั้งที่ 1 แล้ว
+  socket.on('checkPaymentFirst', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data,created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+  // แจ้งเตือนลูกค้าชำระเงินครั้งที่ 2 แล้ว
+  socket.on('checkPaymentSecond', (data) => {
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data,created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  });
+
+
+  // admin
+  socket.on("reportCommission", (data) => {
+    onlineAdmins.forEach((socketId, adminId) => {
+      socket.to(socketId).emit('getNotificationAdmin',{
+        data: { ...data, created_at: nDate, },
+      })
+    })
+  });
+
+  socket.on("reportArtwork", (data) => {
+    onlineAdmins.forEach((socketId, adminId) => {
+      socket.to(socketId).emit('getNotificationAdmin',{
+        data: { ...data, created_at: nDate, },
+      })
+    })
+  });
+
+
 });
 
 
