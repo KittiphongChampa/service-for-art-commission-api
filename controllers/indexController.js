@@ -100,3 +100,98 @@ exports.getTopic = (req, res) => {
         }
     )
 }
+
+exports.getFaq = (req, res) => {
+    dbConn.query(`
+        SELECT * FROM faq WHERE deleted_at IS NULL
+    `, function(error, results) {
+        if (error) {
+            return res.status(500).json({ message: 'Internal Server Error' });
+        }
+        return res.status(200).json({status: "ok", results})
+    })
+}
+
+exports.search = (req, res) => {
+    const search_query = req.query.search;
+    const query = `
+        SELECT 
+            users.id, users.urs_email, users.urs_name, users.urs_profile_img
+        FROM users
+        WHERE 
+            users.urs_name LIKE ? OR users.urs_email LIKE ? AND users.deleted_at IS NULL
+    `
+    dbConn.query(query, [`%${search_query}%`, `%${search_query}%`], function(error, users){
+        if (error) {
+            return res.status(500).json({ message: 'Internal Server Error' });
+        }
+        // console.log("users : ", users);
+        const cms_query = `
+        SELECT 
+            commission.cms_id, 
+            commission.cms_name, 
+            commission.cms_desc, 
+            example_img.ex_img_path, 
+            example_img.status,
+            package_in_cms.pkg_id, 
+            package_in_cms.pkg_min_price
+        FROM 
+            commission
+        JOIN 
+            example_img ON commission.cms_id = example_img.cms_id
+        JOIN 
+            package_in_cms ON commission.cms_id = package_in_cms.cms_id
+        WHERE 
+            commission.cms_name LIKE ? OR commission.cms_desc LIKE ? AND
+            commission.deleted_at IS NULL 
+            AND commission.cms_id NOT IN (
+                SELECT cms_id
+                FROM example_img
+                WHERE status = 'failed'
+            )
+        ORDER BY commission.created_at DESC 
+        `
+        dbConn.query(cms_query, [`%${search_query}%`, `%${search_query}%`], function(error, cms) {
+            if (error) {
+                return res.status(500).json({ message: 'Internal Server Error' });
+            }
+            const uniqueCmsIds = new Set();
+            const cms_uniqueResults = [];
+            cms.forEach((row) => {
+                const cmsId = row.cms_id;
+                if (!uniqueCmsIds.has(cmsId)) {
+                    uniqueCmsIds.add(cmsId);
+                    cms_uniqueResults.push(row);
+                } else {
+                    const existingResult = cms_uniqueResults.find((item) => item.cms_id === cmsId);
+                    if (row.pkg_min_price < existingResult.pkg_min_price) {
+                        Object.assign(existingResult, row);
+                    }
+                }
+            })
+            // console.log("cms : ", cms_uniqueResults);
+
+
+            const artwork_query = `
+                SELECT
+                    example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+                    example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+                FROM
+                    example_img
+                JOIN
+                    artwork ON example_img.artw2_id = artwork.artw_id
+                WHERE
+                    artwork.artw_desc LIKE ? AND artwork.deleted_at IS NULL
+                ORDER BY created_at DESC
+            `
+            dbConn.query(artwork_query, [`%${search_query}%`], function(error, artwork){
+                if (error) {
+                    return res.status(500).json({ message: 'Internal Server Error' });
+                }
+                // console.log(artwrok);
+                return res.status(200).json({status: "ok", users, cms_uniqueResults, artwork})
+            })
+        })
+    })
+
+}

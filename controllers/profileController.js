@@ -53,6 +53,9 @@ exports.profile = (req, res) => {
                       for (let x = 0; x < result.length; x++) {
                         IFollowingsIds.push(result[x].following_id);//เราติดตามใครบ้าง
                       }
+                      // ทั้งสองจะ log ออกมาเป็น array ที่มี id แสดง
+                      // console.log(MyFollowerIds);
+                      // console.log(IFollowingsIds);
                       return res.json({ status: "ok", users, MyFollowerIds, IFollowingsIds });
                     }
                   }

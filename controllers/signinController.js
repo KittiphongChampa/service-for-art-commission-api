@@ -59,6 +59,7 @@ exports.verify = async (req, res) => {
           console.log(insertedUserID);
           return res.json({ status: "ok", otp, insertedUserID });
         } catch (error) {
+          console.log('เข้า catch');
           console.log("error", error);
           return res.json({ status: "error", message: "Failed" });
         }
@@ -98,7 +99,7 @@ exports.verify_email = (req, res) => {
             });
           } else {
             console.log("otp is incorrect");
-            res.json({ status: "error", message: "otp is incorrect" });
+            res.json({ status: "incorrect", message: "otp is incorrect" });
           }
         }
       }
@@ -106,9 +107,6 @@ exports.verify_email = (req, res) => {
 };
 
 exports.register = (req, res) => {
-    // const sum_token = 0;
-    // const urs_token = sum_token.toString();
-    // const urs_token_encrypted = encrypt(urs_token);
     if (req.files === null) {
       return res.json({ status: "error", message: "No File Uploaded" });
     }

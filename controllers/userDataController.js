@@ -20,6 +20,8 @@ let date = new Date();
 let options = { timeZone: "Asia/Bangkok" };
 let bangkokTime = date.toLocaleString("en-US", options);
 
+
+// หาแค่ข้อมูลของผู้ใช้ธรรมดาทั่วไป
 exports.index = (req, res) => {
     const userId = req.user.userId;
     try {

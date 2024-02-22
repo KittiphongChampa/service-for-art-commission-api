@@ -23,8 +23,11 @@ let bangkokTime = date.toLocaleString("en-US", options);
 exports.selectgallory = (req, res) => {
     const userId = req.user.userId;
     dbConn.query(`
-    SELECT example_img.ex_img_id, example_img.ex_img_path FROM commission JOIN example_img ON commission.cms_id = example_img.cms_id
-    WHERE commission.usr_id = ? AND commission.deleted_at IS NULL AND example_img.deleted_at IS NULL 
+    SELECT 
+        example_img.ex_img_id, example_img.ex_img_path 
+    FROM commission 
+    JOIN example_img ON commission.cms_id = example_img.cms_id
+    WHERE commission.usr_id = ? AND commission.deleted_at IS NULL AND example_img.deleted_at IS NULL AND example_img.artw2_id IS NULL
     AND commission.cms_id NOT IN (
         SELECT cms_id
         FROM example_img
@@ -296,8 +299,25 @@ exports.galloryAdd = async (req, res) => {
                 }));
             };
 
+            const update_Example_images = (ex_img_id, artw2_id) => {  
+                return new Promise((resolve, reject) => {
+                    dbConn.query(`
+                    UPDATE example_img SET artw2_id=? WHERE ex_img_id=?
+                    `, [artw2_id, ex_img_id], (error, resul) => {
+                        if (error) {
+                            console.error('Error inserting record:', error);
+                            reject(error);
+                        } else {
+                            console.log('insertExample_img success:', resul.insertId);
+                            resolve(resul.insertId);
+                        }
+                    });
+                });
+            };
+
             const artw2_id = await insertArtwork(ex_img_id, artworkDesc, userId);
             await insertArtw_has_topic(artworkTopic, artw2_id, userId);
+            await update_Example_images(ex_img_id, artw2_id);
 
             return res.status(200).json({ status: 'ok' });
         }
@@ -403,32 +423,32 @@ exports.galloryDelete = (req, res) => {
 
 exports.gallorylatest = (req, res) => {
     const query = `
-    SELECT 
-        artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
-        example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
-    FROM 
-        artwork
-    JOIN 
-        example_img ON artwork.ex_img_id = example_img.ex_img_id
-    WHERE 
-        artwork.deleted_at IS NULL 
-    UNION
-    SELECT
-        example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
-        example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
-    FROM
-        example_img
-    JOIN
-        artwork ON example_img.artw2_id = artwork.artw_id
-    WHERE
-        example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
-
-    `;
-    // ORDER BY created_at DESC
-    // LIMIT 15;
+        SELECT * FROM (
+            SELECT 
+                artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+                example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
+            FROM 
+                artwork
+            JOIN 
+                example_img ON artwork.ex_img_id = example_img.ex_img_id
+            WHERE 
+                artwork.deleted_at IS NULL 
+            UNION
+            SELECT
+                example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+                example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+            FROM
+                example_img
+            JOIN
+                artwork ON example_img.artw2_id = artwork.artw_id
+            WHERE
+                example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
+        ) results
+        ORDER BY created_at DESC
+        LIMIT 15;
+    `
     dbConn.query(query, function (error, results) {
         if (error) {
-            console.log('เข้าาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาาา');
             console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
             return res.json({ status: "error", message: "status error" });
         }
@@ -529,6 +549,7 @@ exports.galloryIfollow = (req, res) => {
                     }
                     if (myFollowings.length > 0) {
                         query = `
+                        SELECT * FROM (
                             SELECT 
                                 artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
                                 example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
@@ -549,8 +570,9 @@ exports.galloryIfollow = (req, res) => {
                                 artwork ON example_img.artw2_id = artwork.artw_id
                             WHERE
                                 example_img.cms_id IS NULL AND example_img.usr_id IN (?) AND artwork.deleted_at IS NULL
-                            ORDER BY created_at DESC
-                            LIMIT 15;
+                        ) results
+                        ORDER BY created_at DESC
+                        LIMIT 15;
                         `
                     } else {
                         return res.status(200).json({ status: "ok", results : 'คุณไม่มีนักวาดที่ติดตาม' });
@@ -577,65 +599,107 @@ exports.galloryAll = (req, res) => {
     let sortBy = req.query.sortBy || 'ล่าสุด';
     let filterBy = req.query.filterBy || 'all';
     let topic = req.query.topic;
+    console.log(topic);
     let sqlQuery = ``;
     if (topic == 'เลือกทั้งหมด') {
+        // sqlQuery = `
+        //     SELECT 
+        //         artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+        //         example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
+        //     FROM 
+        //         artwork
+        //     JOIN 
+        //         example_img ON artwork.ex_img_id = example_img.ex_img_id
+        //     WHERE 
+        //         artwork.deleted_at IS NULL 
+        //     UNION
+        //     SELECT
+        //         example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+        //         example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+        //     FROM
+        //         example_img
+        //     JOIN
+        //         artwork ON example_img.artw2_id = artwork.artw_id
+        //     WHERE
+        //         example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
+        //     ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+        // `
         sqlQuery = `
-        SELECT 
-            artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
-            example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
-        FROM 
-            artwork
-        JOIN 
-            example_img ON artwork.ex_img_id = example_img.ex_img_id
-        WHERE 
-            artwork.deleted_at IS NULL 
-        UNION
-        SELECT
-            example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
-            example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
-        FROM
-            example_img
-        JOIN
-            artwork ON example_img.artw2_id = artwork.artw_id
-        WHERE
-            example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
+        SELECT * FROM (
+            SELECT 
+                artwork.artw_id, artwork.artw_desc, artwork.ex_img_id, artwork.created_at, 
+                example_img.ex_img_path, example_img.ex_img_name
+            FROM 
+                artwork 
+            LEFT JOIN 
+                example_img ON example_img.artw2_id = artwork.artw_id
+            WHERE
+                artwork.deleted_at IS NULL AND (artwork.ex_img_id IS NULL)
+            UNION
+            SELECT
+                artwork.artw_id, artwork.artw_desc, artwork.ex_img_id, artwork.created_at, 
+                example_img.ex_img_path, example_img.ex_img_name
+            FROM 
+                artwork 
+            LEFT JOIN 
+                example_img ON example_img.ex_img_id = artwork.ex_img_id
+            WHERE
+                artwork.deleted_at IS NULL AND (artwork.ex_img_id IS NOT NULL)
+        ) results
         ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
-    `;
+        `
+    ;
     } else {
+
         sqlQuery = `
-        SELECT 
-            artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
-            example_img.ex_img_path, example_img.ex_img_name, artwork.created_at,
-            artwork_has_topic.tp_id
-        FROM 
-            artwork
-        JOIN 
-            example_img ON artwork.ex_img_id = example_img.ex_img_id
-        JOIN 
-            artwork_has_topic ON artwork.artw_id = artwork_has_topic.artw2_id
-        WHERE 
-            artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ${topic}
-        UNION
-        SELECT
-            example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
-            example_img.ex_img_path, example_img.ex_img_name, example_img.created_at,
-            artwork_has_topic.tp_id
-        FROM
-            example_img
-        JOIN
-            artwork ON example_img.artw2_id = artwork.artw_id
-        JOIN
-            artwork_has_topic ON example_img.artw2_id = artwork_has_topic.artw_id
-        WHERE
-            example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ${topic}
-        ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+            SELECT * FROM (
+                SELECT 
+                    artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+                    example_img.ex_img_path, example_img.ex_img_name, artwork.created_at,
+                    artwork_has_topic.tp_id
+                FROM 
+                    artwork
+                JOIN 
+                    example_img ON artwork.ex_img_id = example_img.ex_img_id
+                JOIN 
+                    artwork_has_topic ON artwork.artw_id = artwork_has_topic.artw2_id
+                WHERE 
+                    artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ?
+                UNION
+                SELECT
+                    example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+                    example_img.ex_img_path, example_img.ex_img_name, example_img.created_at,
+                    artwork_has_topic.tp_id
+                FROM
+                    example_img
+                JOIN
+                    artwork ON example_img.artw2_id = artwork.artw_id
+                JOIN
+                    artwork_has_topic ON example_img.artw2_id = artwork_has_topic.artw_id
+                WHERE
+                    example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ?
+            ) results
+            ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
         `;
+
+        // sqlQuery = `
+        //     SELECT 
+        //         artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+        //         example_img.ex_img_path, example_img.ex_img_name, artwork.created_at,
+        //         artwork_has_topic.tp_id
+        //     FROM artwork
+        //     JOIN 
+        //         example_img ON artwork.ex_img_id = example_img.ex_img_id
+        //     WHERE example_img.artw2_id IS NOT NULL artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ?
+        //     ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+        // `
     }
-    dbConn.query(sqlQuery, (error, results) => {
+    dbConn.query(sqlQuery, [topic, topic],(error, results) => {
         if (error) {
           console.log(error);
           return res.status(500).json({ message: 'galloryAll Error', error: error.message });
         }
+        // console.log(results);
         return res.status(200).json({ results, message: 'Success' });
     });
 };

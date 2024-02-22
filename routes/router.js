@@ -72,6 +72,8 @@ router.get("/getQueueData/:id", cmsController.getQueueData)
 router.get("/getCommission", cmsController.getCommission)
 router.get("/getCommission/Ifollow", cmsController.getCommissionIfollow)
 
+
+
 //galleryController
 router.get("/gallerry/select-cms", auth.verifyToken, galleryController.selectgallory)
 router.post("/gallerry/add", auth.verifyToken, galleryController.galloryAdd)
@@ -88,6 +90,8 @@ router.get("/galleryIFollowArtist", galleryController.galleryIFollowArtist)
 router.get("/admin", auth.verifyToken, auth.adminOnly, adminController.admin);
 router.get("/alluser", auth.verifyToken, auth.adminOnly, adminController.allUser);
 router.get("/alladmin", auth.verifyToken, auth.adminOnly, adminController.allAdmin);
+
+router.patch("/alluser/delete/:id", auth.verifyToken, auth.adminOnly, adminController.delete_User);
 
 router.post("/alladmin/email/verify", adminController.adminVerifyEmail);
 router.post("/alladmin/otp/verify/", adminController.adminVerifyOTP);
@@ -136,13 +140,23 @@ router.post("/ArtistIndex", indexController.ArtistIndex);
 router.get("/allArtist", indexController.allArtist);
 router.get("/getAritisIFollow", indexController.ArtistIFollow);
 router.get("/getTopic", indexController.getTopic);
+router.get("/all/faq", indexController.getFaq)
+
+router.get("/search", indexController.search)
 
 //reportController
 router.get("/allreport", reportController.allReport);
+router.get("/report/detail/:id", reportController.reportDetail);
 router.get("/allApproveReport", reportController.allApproveReport);
 router.get("/allDeletedReport", reportController.allDeletedReport);
+
+router.post("/report/approve/:id", reportController.approveReport);
+router.post("/report/delete/:id", auth.verifyToken, auth.adminOnly, reportController.deleteReport);
+
 router.post("/report/artwork/:id", auth.verifyToken, reportController.reportArtwork);
 router.post("/report/commission/:id", auth.verifyToken, reportController.reportCommission);
+
+router.get("/report/relateto", reportController.reportRelateto)
 
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);

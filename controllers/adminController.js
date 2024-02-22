@@ -849,3 +849,30 @@ exports.alladminIds = (req, res) => {
     return res.status(200).json({ status: "ok", adminIds });
   })
 }
+
+exports.delete_User =(req,res) => {
+  const userId = req.params.id;
+  const adminId = req.user.adminId;
+  const banReason = req.body.banReason;
+  try {
+    dbConn.query(
+      "UPDATE users SET deleted_at = ?, deleted_by=?, usr_banned_reason=? WHERE id = ?",
+      [date, adminId, banReason, userId],
+      function (error, results) {
+        if (results) {
+          return res.json({
+            status: "ok",
+            message: "ระงับบัญชีผู้ใช้สำเร็จ",
+          });
+        } else {
+          return res.json({ status: "error", message: error });
+        }
+      }
+    );
+  } catch {
+    return res.json({
+      status: "error",
+      message: "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
+    });
+  }
+};
