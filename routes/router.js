@@ -72,6 +72,8 @@ router.get("/getQueueData/:id", cmsController.getQueueData)
 router.get("/getCommission", cmsController.getCommission)
 router.get("/getCommission/Ifollow", cmsController.getCommissionIfollow)
 
+router.get("/get/queue/:id", cmsController.getQueueInfo)
+
 
 
 //galleryController
@@ -110,8 +112,8 @@ router.get("/all-id-admin", adminController.alladminIds);//ตอนนี้ไ
 
 
 //admin-noti
-router.post("/admin-noti-artwork/add", notificationController.addNotiArtwork);
-router.get("/getnotimsg", notificationController.getnotimsg);
+router.post("/admin/noti/add", notificationController.addNotiArtwork);
+router.get("/admin/noti/getmsg", notificationController.getAdminNoti);
 
 //user-noti
 router.get("/noti/getmsg", auth.verifyToken, notificationController.getNoti)
@@ -135,6 +137,16 @@ router.get("/getYearDataArtist", auth.verifyToken, artistDashboardController.get
 router.get("/getOutOfYearDataArtist", auth.verifyToken, artistDashboardController.getOutOfYearDataArtist);
 router.get("/getCountTopic", artistDashboardController.getCountTopic)
 
+router.get("/get/profit/yeardata", auth.verifyToken, artistDashboardController.getYearProfitData);
+router.get("/get/profit/outofyear", auth.verifyToken, artistDashboardController.getProfitOutOfYear);
+
+router.get("/get/top/commission", auth.verifyToken, artistDashboardController.getTopCommission);
+router.get("/get/top/customer", auth.verifyToken, artistDashboardController.getTopCustomer);
+
+router.get("/count/Follower", auth.verifyToken, artistDashboardController.getCountFollower)
+router.get("/sum/profit", auth.verifyToken, artistDashboardController.getSumProfit)
+router.get("/count/order", auth.verifyToken, artistDashboardController.getCountOrder)
+
 //indexController
 router.post("/ArtistIndex", indexController.ArtistIndex);
 router.get("/allArtist", indexController.allArtist);
@@ -156,8 +168,6 @@ router.post("/report/delete/:id", auth.verifyToken, auth.adminOnly, reportContro
 router.post("/report/artwork/:id", auth.verifyToken, reportController.reportArtwork);
 router.post("/report/commission/:id", auth.verifyToken, reportController.reportCommission);
 
-router.get("/report/relateto", reportController.reportRelateto)
-
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);
 router.post("/messages/addmsg-order", auth.verifyToken, orderController.addMessagesOrder);
@@ -168,7 +178,6 @@ router.post("/getallorderdetail", orderController.getAllOrderDetail);
 router.post("/messages/updatestep", orderController.updateStep);
 router.post("/upload-img/progress/:id", orderController.sendImageProgress);
 router.get("/getPayment/order/:id", orderController.getPayment);
-
 
 
 // router.post("/test/:id", orderController.test);

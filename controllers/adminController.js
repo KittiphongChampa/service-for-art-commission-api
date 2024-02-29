@@ -69,26 +69,16 @@ exports.allUser = (req, res) => {
 };
 
 exports.allAdmin = (req, res) => {
-    const adminId = req.user.adminId;
     try{
-      dbConn.query("SELECT * FROM admins WHERE admin_id=?",
-        [adminId],
-        function (error, results) {
-          console.log(results[0].admin_id);
-          if (results[0].admin_id !== adminId) {
-            return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
+      dbConn.query(
+        "SELECT * FROM admins WHERE admin_type != 0 and deleted_at IS NULL",
+        function (error, admins) {
+          if (error) {
+            return res.json({ status: "error", message: error });
+          } else {
+            console.log(admins);
+            return res.json({ status: "ok", admins,});
           }
-          // return res.json({ status: "ok", users, urs_token });
-          dbConn.query(
-            "SELECT * FROM admins WHERE admin_type != 0 and deleted_at IS NULL",
-            function (error, admins) {
-              if (admins) {
-                return res.json({ status: "ok", results, admins,});
-              } else {
-                return res.json({ status: "error", message: error });
-              }
-            }
-          );
         }
       );
     }catch{

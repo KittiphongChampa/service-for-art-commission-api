@@ -15,9 +15,10 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 // admin
 exports.addNotiArtwork = (req, res) => {
-    console.log(req.body);
-    dbConn.query(`INSERT INTO notification SET `, function(error, results){
+    const {reporter, reported, msg, reportId} = req.body;
+    dbConn.query(`INSERT INTO notification SET noti_text=?, sender_id=?, receiver_id=?, rp_id=?`,[msg, reporter, reported, reportId], function(error, results){
         if (error) {
+            console.log('เข้า error');
             console.log(error);
             return res.status(500).json({error})
         }
@@ -25,16 +26,41 @@ exports.addNotiArtwork = (req, res) => {
     })
 }
 
-exports.getnotimsg = (req, res) => {
-    dbConn.query(`SELECT * FROM notification`, function(error, results){
+exports.getAdminNoti = (req, res) => {
+    dbConn.query(`
+        SELECT 
+            notification.noti_id, notification.noti_text, notification.noti_read, notification.created_at, notification.sender_id,  notification.rp_id, 
+            users.urs_name, users.urs_profile_img 
+        FROM 
+            notification 
+        JOIN
+            users ON notification.sender_id = users.id
+        WHERE 
+            receiver_id IN (?) ORDER BY notification.created_at DESC
+        `
+        ,[0], function(error, results){
         if (error) {
             console.log(error);
             return res.status(500).json({error})
         }
-        console.log('เข้า',results);
-        return res.status(200).json({status:'ok', results})
+        const dataNoti = results.map(result => {
+            const formattedDate = new Date(result.created_at).toLocaleString().replace('T', ' ').slice(0, 19);
+            return {
+                notiId: result.noti_id,
+                msg: result.noti_text,
+                reportId: result.rp_id,
+                sender_id: result.sender_id,
+                sender_name: result.urs_name,
+                sender_img: result.urs_profile_img,
+                noti_read: result.noti_read,
+                created_at: formattedDate,
+            };
+        });
+        // console.log(dataNoti);
+        return res.status(200).json({dataNoti})
     })
 }
+
 // user
 exports.getNoti = (req, res, next) => {
     try{
@@ -88,15 +114,31 @@ exports.notiAdd = (req, res) => {
 }
 
 exports.notiReaded = (req, res) => {
-    const {keyData, action} = req.query
-    const sql = `
-        UPDATE notification SET noti_read=? WHERE od_id=? AND noti_text=?
-    `
-    dbConn.query(sql, [1, keyData, action], function (error, results){
-        if (error) {
-            console.log(error);
-            return res.status(500).json({error})
-        } 
-        return res.status(200).json({message: "ok"})
-    })
+    const {report_keyData, order_keyData, action} = req.query;
+
+    if (report_keyData  && !order_keyData) {
+        const sql = `
+            UPDATE notification SET noti_read=? WHERE rp_id=? AND noti_text=?
+        `
+        dbConn.query(sql, [1, report_keyData, action], function (error, results){
+            if (error) {
+                console.log(error);
+                return res.status(500).json({error})
+            } 
+            return res.status(200).json({message: "ok"})
+        })
+    
+    } else if (!report_keyData && order_keyData) {
+        const sql = `
+            UPDATE notification SET noti_read=? WHERE od_id=? AND noti_text=?
+        `
+        dbConn.query(sql, [1, order_keyData, action], function (error, results){
+            if (error) {
+                console.log(error);
+                return res.status(500).json({error})
+            } 
+            return res.status(200).json({message: "ok"})
+        })
+    }
+ 
 }

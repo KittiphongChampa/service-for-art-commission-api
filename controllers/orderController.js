@@ -13,204 +13,89 @@ let date = new Date();
 let options = { timeZone: "Asia/Bangkok" };
 let bangkokTime = date.toLocaleString("en-US", options);
 
-// exports.user_addOrder = (req, res) => {
-//     const userID = req.user.userId;
-//     const { cmsID, artistId, pkgId, od_use_for, od_detail } = req.body;
-  
-//     // 1. ดึงค่าลำดับคิว (Queue) จากตาราง commission
-//     dbConn.query(`SELECT cms_amount_q FROM commission WHERE cms_id=?`, [cmsID],
-//       function(error, results) {
-//         if (error) {
-//           return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//         } else {
-//           const Queue = results[0].cms_amount_q;
-  
-//           dbConn.query(`SELECT od_q_number FROM cms_order WHERE cms_id=? ORDER BY od_id DESC LIMIT 1`, [cmsID],
-//           function (error, result) {
-//             if (error) {
-//               console.log('เกิดข้อผิดพลาดในการค้นหาค่า od_q_number');
-//               return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดในการค้นหาค่า od_q_number" });
-//             } else {
-  
-//               //เช็กค่าว่ามี od_q_number ไหม
-//               if (result.length > 0) {
-//                 const latestOdQNumber = result[0].od_q_number;
-//                 if (Queue === latestOdQNumber) {
-//                   return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
-//                 } else {
-//                   dbConn.query(
-//                     `INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_q_number=?`,
-//                     [cmsID, userID, artistId, pkgId, od_use_for, od_detail, latestOdQNumber + 1],
-//                     function(errors, cms_order_result) {
-//                       if (errors) {
-//                         console.log(errors);
-//                         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                       } else {
+// exports.user_addOrder = async (req, res) => {
+//   try {
+//       const userID = req.user.userId;
+//       const { cmsID, artistId, pkgId, od_use_for, od_detail } = req.body;
 
-//                         const orderId = cms_order_result.insertId;
-//                         //----------------------------------------------เพิ่มการ insert ข้อมูลใส่ cms_steps table---------------------------------------------
-                        
-//                         console.log('เข้า 1');
-//                         let arrayTest = [];
-//                         const sql1 = `
-//                           SELECT cms_step 
-//                           FROM package_in_cms 
-//                           JOIN cms_order ON package_in_cms.pkg_id = cms_order.pkg_id
-//                           WHERE cms_order.od_id = ?
-//                         `
-//                         // function insert ข้อมูลของ cms_step ใน package ไปเก็บที่ cms_step
-//                         dbConn.query(sql1, [orderId],(error, result) => {
-//                           if (error) {
-//                             console.log(error);
-//                             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                           }
+//       const Queue = await getCmsQueue(cmsID);
 
-//                           // result log = [ { cms_step: 'ภาพร่าง,test1,test2,test3,ภาพไฟนัล' } ]
-//                           if (result.length > 0) {
-//                             const cmsStep = result[0].cms_step;
+//       const latestOdQNumber = await getLatestOdQNumber(cmsID);
 
-//                             // ใช้ split เพื่อแยกข้อมูล
-//                             arrayTest = cmsStep.split(',');
-//                               arrayTest.forEach((step_name, index) => {
-//                                 const checked_at = (index === 0) ? new Date() : null;
-                            
-//                                 const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
-                                
-//                                 dbConn.query(sql, [orderId, step_name, checked_at], (error, result) => {
-//                                     if (error) {
-//                                         console.log('Error inserting data:', error);
-//                                         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                                     } else {
-//                                         console.log('Data inserted successfully:', result);
-//                                         return res.status(200).json({ 
-//                                           status: 'ok',
-//                                           message: "คำขอจ้างถูกส่งเรียบร้อย",
-//                                           orderId
-//                                         });
-//                                     }
-//                                 });
-//                             });
-                            
-//                           }
-//                         })
-
-
-//                         //-------------------------------------------------------------------------------------------------------------------------------
-//                         // return res.status(200).json({ 
-//                         //   status: 'ok',
-//                         //   message: "คำขอจ้างถูกส่งเรียบร้อย",
-//                         //   orderId
-//                         // });
-//                       }
-//                     }
-//                   );
-//                 }
-//               } else {
-//                 dbConn.query(
-//                   `INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_q_number=?`,
-//                   [cmsID, userID, artistId, pkgId, od_use_for, od_detail, 1],
-//                   function(errors, cms_order_result) {
-//                     if (errors) {
-//                       console.log(errors);
-//                       return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                     } else {
-
-
-//                       // console.log('เข้าการทำงานสำหรับยังไม่มี order');
-//                       const orderId = cms_order_result.insertId;
-
-
-//                       //----------------------------------------------เพิ่มการ insert ข้อมูลใส่ cms_steps table---------------------------------------------
-                        
-//                       console.log('เข้า 2');
-//                       let arrayTest = [];
-//                       const sql1 = `
-//                         SELECT cms_step 
-//                         FROM package_in_cms 
-//                         JOIN cms_order ON package_in_cms.pkg_id = cms_order.pkg_id
-//                         WHERE cms_order.od_id = ?
-//                       `
-//                       // function insert ข้อมูลของ cms_step ใน package ไปเก็บที่ cms_step
-//                       dbConn.query(sql1, [orderId],(error, result) => {
-//                         if (error) {
-//                           console.log(error);
-//                           return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                         }
-
-//                         // result log = [ { cms_step: 'ภาพร่าง,test1,test2,test3,ภาพไฟนัล' } ]
-//                         if (result.length > 0) {
-//                           const cmsStep = result[0].cms_step;
-
-//                           // ใช้ split เพื่อแยกข้อมูล
-//                           arrayTest = cmsStep.split(',');
-//                             arrayTest.forEach((step_name, index) => {
-//                               const checked_at = (index === 0) ? new Date() : null;
-                          
-//                               const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
-                              
-//                               dbConn.query(sql, [orderId, step_name, checked_at], (error, result) => {
-//                                   if (error) {
-//                                       console.log('Error inserting data:', error);
-//                                       return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-//                                   } else {
-//                                       console.log('Data inserted successfully:', result);
-//                                       return res.status(200).json({ 
-//                                         status: 'ok',
-//                                         message: "คำขอจ้างถูกส่งเรียบร้อย",
-//                                         orderId
-//                                       });
-//                                   }
-//                               });
-//                           });
-                          
-//                         }
-//                       })
-
-
-//                       //-------------------------------------------------------------------------------------------------------------------------------
-//                       // return res.status(200).json({ 
-//                       //   status: 'ok',
-//                       //   message: "คำขอจ้างถูกส่งเรียบร้อย",
-//                       //   orderId
-//                       // });
-//                     }
-//                   }
-//                 );
-//               }
-//             }
-//           })
-//         }
+//       if (latestOdQNumber !== null && Queue === latestOdQNumber) {
+//           return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
 //       }
-//     );
+
+//       const cmsOrderResult = await insertCmsOrder(cmsID, userID, artistId, pkgId, od_use_for, od_detail, latestOdQNumber + 1);
+
+//       const orderId = cmsOrderResult.insertId;
+
+//       const cmsStepResult = await insertCmsSteps(orderId);
+
+//       return res.status(200).json({
+//           status: 'ok',
+//           message: "คำขอจ้างถูกส่งเรียบร้อย",
+//           orderId
+//       });
+//   } catch (error) {
+//       console.error('Error:', error);
+//       return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+//   }
 // };
 
 exports.user_addOrder = async (req, res) => {
   try {
-      const userID = req.user.userId;
-      const { cmsID, artistId, pkgId, od_use_for, od_detail } = req.body;
+    const userID = req.user.userId;
+    const { cmsID, artistId, pkgId, od_use_for, od_detail } = req.body;
+    const od_status = "inprogress";
 
-      const Queue = await getCmsQueue(cmsID);
+    const findQueueEmpty = `
+      SELECT (c.cms_amount_q - IFNULL(COUNT(o.od_id), 0)) AS available_slots
+      FROM commission c
+      LEFT JOIN cms_order o ON c.cms_id = o.cms_id
+      WHERE c.cms_id = ? 
+    `
+    dbConn.query(findQueueEmpty, [cmsID], async (error, results) => {
+      console.log(results);
 
-      const latestOdQNumber = await getLatestOdQNumber(cmsID);
-
-      if (latestOdQNumber !== null && Queue === latestOdQNumber) {
-          return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
+      if (error) {
+        console.log('เกิดข้อผิดพลาด');
+        return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+      } 
+      
+      const available_slots = results[0].available_slots;
+      if (available_slots > 0) {
+        const insertCmsOrder = `
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?
+        `
+        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status], async (err, result) => {
+          if (err) {
+            console.log("เกิดข้อผิดพลาดที่ ERR");
+            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
+          }
+          // ดึงข้อมูล orderId มาจากไอดีของข้อมูลที่ถูกสร้าง
+          const orderId = result.insertId;
+          try {
+            await insertCmsSteps(orderId);
+            return res.status(200).json({
+              status: 'ok',
+              message: "คำขอจ้างถูกส่งเรียบร้อย",
+              orderId
+            });
+          } catch (error) {
+            console.error('Error:', error);
+            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+          }
+          
+        })
+      } else {
+        return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
       }
+    })
 
-      const cmsOrderResult = await insertCmsOrder(cmsID, userID, artistId, pkgId, od_use_for, od_detail, latestOdQNumber + 1);
-
-      const orderId = cmsOrderResult.insertId;
-
-      const cmsStepResult = await insertCmsSteps(orderId);
-
-      return res.status(200).json({
-          status: 'ok',
-          message: "คำขอจ้างถูกส่งเรียบร้อย",
-          orderId
-      });
-  } catch (error) {
-      console.error('Error:', error);
-      return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+  } catch {
+    console.error('Error:', error);
+    return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ catch" });
   }
 };
 
@@ -278,11 +163,24 @@ async function insertCmsSteps(orderId) {
                   await insertCmsStep(orderId, step_name, checked_at);
               }
 
-              resolve(arrayTest);
+              // เมื่อเสร็จสิ้นการเพิ่มข้อมูลลำดับคิวแล้ว ก่อน resolve ค่าออกไป ทำการอัปเดตค่า od_current_step_id ใน cms_order
+              const sqlUpdateOrder = `
+                  UPDATE cms_order 
+                  SET od_current_step_id = (SELECT MIN(step_id) FROM cms_steps WHERE checked_at IS NULL AND od_id = ?)
+                  WHERE od_id = ?
+              `;
+              dbConn.query(sqlUpdateOrder, [orderId, orderId], (error, result) => {
+                  if (error) {
+                      reject(error);
+                  } else {
+                      resolve(arrayTest);
+                  }
+              });
           }
       });
   });
 }
+
 
 async function insertCmsStep(orderId, step_name, checked_at) {
   return new Promise((resolve, reject) => {

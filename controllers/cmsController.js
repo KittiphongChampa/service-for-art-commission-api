@@ -18,13 +18,13 @@ exports.addCommission = (req, res) => {
     function insertCommission(data, userId) {
       return new Promise((resolve, reject) => {
         dbConn.query(
-            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, usr_id=?",
+            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, cms_status=?, usr_id=?",
             [...data, userId],
             (error, results) => {
             if (error) {
                 reject(error);
             } else {
-              console.log("CMS Success");
+              // console.log("CMS Success");
               resolve(results.insertId);
             }
             }
@@ -200,8 +200,9 @@ exports.addCommission = (req, res) => {
       // console.log(sumStep);
   
       //insert cms
+      const cms_status = "open";
       const commissionPromise = insertCommission(
-          [commission_name, commission_description, commission_que, good, bad, no_talking],userId
+          [commission_name, commission_description, commission_que, good, bad, no_talking, cms_status],userId
       );
       commissionPromise.then((commissionId) => {
   
@@ -460,19 +461,27 @@ exports.detailCommission = (req, res) => {
     const cmsID = req.params.id;
     try {
       const query = `
-        SELECT commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_by, commission.delete_reason,
-        example_img.ex_img_id , example_img.ex_img_path, example_img.status,
-        package_in_cms.pkg_id, package_in_cms.pkg_name ,package_in_cms.pkg_desc ,package_in_cms.pkg_min_price ,package_in_cms.pkg_duration ,package_in_cms.pkg_edits,
-        users.id, users.urs_name, users.urs_profile_img,
-        commission_has_type_of_use.cms_id, commission_has_type_of_use.tou_id,
-        type_of_use.tou_id, type_of_use.tou_name, type_of_use.tou_desc
-        FROM commission
-        JOIN example_img ON commission.cms_id = example_img.cms_id
-        JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-        JOIN users ON commission.usr_id = users.id
-        JOIN commission_has_type_of_use ON commission.cms_id = commission_has_type_of_use.cms_id
-        JOIN type_of_use ON type_of_use.tou_id = commission_has_type_of_use.tou_id
-        WHERE commission.cms_id = ? AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL
+        SELECT 
+          commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_by, commission.delete_reason,
+          example_img.ex_img_id , example_img.ex_img_path, example_img.status,
+          package_in_cms.pkg_id, package_in_cms.pkg_name ,package_in_cms.pkg_desc ,package_in_cms.pkg_min_price ,package_in_cms.pkg_duration ,package_in_cms.pkg_edits,
+          users.id, users.urs_name, users.urs_profile_img,
+          commission_has_type_of_use.cms_id, commission_has_type_of_use.tou_id,
+          type_of_use.tou_id, type_of_use.tou_name, type_of_use.tou_desc
+        FROM 
+          commission
+        JOIN 
+          example_img ON commission.cms_id = example_img.cms_id
+        JOIN 
+          package_in_cms ON commission.cms_id = package_in_cms.cms_id
+        JOIN 
+          users ON commission.usr_id = users.id
+        JOIN 
+          commission_has_type_of_use ON commission.cms_id = commission_has_type_of_use.cms_id
+        JOIN 
+          type_of_use ON type_of_use.tou_id = commission_has_type_of_use.tou_id
+        WHERE 
+          commission.cms_id = ? AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL AND package_in_cms.deleted_at IS NULL
       `;
       
       dbConn.query(query, [cmsID], function (error, results) {
@@ -563,6 +572,8 @@ exports.detailCommission = (req, res) => {
           tou_name: result.tou_name,
           tou_desc: result.tou_desc
         }));
+
+        // console.log(response);
   
         return res.status(200).json(response);
       });
@@ -571,6 +582,41 @@ exports.detailCommission = (req, res) => {
       return res.status(500).json({ status: "error", message: "Internal server error" });
     }
 };
+
+exports.getQueueInfo = (req, res) => {
+  const cmsID = req.params.id;
+  const od_status = "inprogress";
+  const getQueueSQL = `
+    SELECT c.cms_id, c.cms_amount_q, COUNT(o.od_id) AS used_slots
+    FROM commission c
+    LEFT JOIN cms_order o ON c.cms_id = o.cms_id
+    WHERE c.cms_id = ? AND o.od_status = ?
+    GROUP BY c.cms_id, c.cms_amount_q
+  `
+  dbConn.query(getQueueSQL, [cmsID, od_status] ,(error, results) => {
+    if (error) {
+      return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+    }
+    const getQueueDataSQL = `
+      SELECT o.od_id, o.ordered_at, u.id, u.urs_name, u.urs_email, s.step_name, c.cms_id, c.cms_name, p.pkg_name
+      FROM cms_order o
+      JOIN users u ON o.customer_id = u.id
+      JOIN cms_steps s ON o.od_current_step_id = s.step_id
+      JOIN commission c ON o.cms_id = c.cms_id
+      JOIN package_in_cms p ON o.pkg_id = p.pkg_id
+      WHERE o.od_status = 'inprogress' AND o.cms_id = ?
+      ORDER BY o.ordered_at ASC;
+    `
+    dbConn.query(getQueueDataSQL, [cmsID], (err, result) => {
+      if (err) {
+        return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+      }
+      console.log(result);
+      return res.status(200).json({ QueueInfo : results, QueueData : result});
+    })
+    console.log(results);
+  })
+};
   
 exports.getQueue = (req, res) => {
     const cmsID = req.params.id;
@@ -578,30 +624,9 @@ exports.getQueue = (req, res) => {
         function(error, results) {
         if (error) {
             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-        } else {
-            const Queue = results[0].cms_amount_q;
-            dbConn.query(`SELECT od_q_number FROM cms_order WHERE cms_id=? ORDER BY od_id DESC LIMIT 1`, [cmsID],
-            function (error, result) {
-            if (error) {
-                console.log('เกิดข้อผิดพลาดในการค้นหาค่า od_q_number');
-                return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดในการค้นหาค่า od_q_number" });
-            } else {
-                let latestOdQNumber = 0
-                if (result.length > 0) {
-                latestOdQNumber = result[0].od_q_number;
-                return res.status(200).json({ 
-                    Queue,
-                    latestOdQNumber,
-                });
-                } else {
-                return res.status(200).json({ 
-                    Queue,
-                    latestOdQNumber,
-                });
-                }
-            }
-            })
-        }
+        } 
+        const Queue = results[0].cms_amount_q;
+        return res.status(200).json({ Queue });
         }
     );
 };
@@ -682,7 +707,10 @@ exports.getQueueData = (req, res) => {
 // };
 
 exports.updateCommission = async (req, res) => {
-  console.log('เข้า');
+  console.log(req.body);
+  const deletedPkgIds = req.query.deletedPkgIds;
+  const userId = req.user.userId;
+  const cms_id = req.params.id;
   try {
     function insertCms_type_of_use(typeofuse, cms_id, userId) {
       const tous = typeofuse.split(',');
@@ -712,8 +740,6 @@ exports.updateCommission = async (req, res) => {
       return Promise.all(insertPromises);
     }
 
-    const userId = req.user.userId;
-    const cms_id = req.params.id;
     const { commission_name, typeofuse, commission_description, commission_q, good, bad, no_talking } = req.body;
 
     const updateResult = await new Promise((resolve, reject) => {
@@ -741,6 +767,96 @@ exports.updateCommission = async (req, res) => {
     });
 
     const insertResults = await insertCms_type_of_use(typeofuse, cms_id, userId);
+
+    // เหลือทำการแก้ไขข้อมูลของ package
+    const { package_id, package_name, package_detail, duration, price, edits } = req.body;
+    
+    if (Array.isArray(package_id)) {
+      // กรณี package_id เป็น array (มีการอัปเดตหลายรายการ)
+      // สร้าง array ของ objects ที่เก็บข้อมูลแต่ละชุดเป็นเจาะจง
+      const packagesData = package_id.map((id, index) => ({
+        id,
+        name: package_name[index],
+        detail: package_detail[index],
+        duration: duration[index],
+        price: price[index],
+        edits: edits[index]
+      }));
+    
+      // สร้างคำสั่ง SQL UPDATE โดยใช้ parameterized query
+      const updatePackageSQL = `
+        UPDATE package_in_cms
+        SET pkg_name = ?,
+            pkg_desc = ?,
+            pkg_min_price = ?,
+            pkg_duration = ?,
+            pkg_edits = ?
+        WHERE pkg_id = ?;
+      `;
+    
+      // execute คำสั่ง SQL UPDATE สำหรับทุกชุดข้อมูลพร้อมกัน
+      packagesData.forEach(packageData => {
+        const params = [
+          packageData.name,
+          packageData.detail,
+          packageData.price,
+          packageData.duration,
+          packageData.edits,
+          packageData.id
+        ];
+    
+        dbConn.query(updatePackageSQL, params, function(error, result) {
+          if (error) {
+            console.log(error);
+          } else {
+            console.log(result);
+          }
+        });
+      });
+    } else {
+      // กรณี package_id เป็นข้อมูลเดี่ยว (มีการอัปเดตเพียงรายการเดียว)
+      const updatePackageSQL = `
+        UPDATE package_in_cms
+        SET pkg_name = ?,
+            pkg_desc = ?,
+            pkg_min_price = ?,
+            pkg_duration = ?,
+            pkg_edits = ?
+        WHERE pkg_id = ?;
+      `;
+    
+      const params = [
+        package_name,
+        package_detail,
+        price,
+        duration,
+        edits,
+        package_id
+      ];
+    
+      dbConn.query(updatePackageSQL, params, function(error, result) {
+        if (error) {
+          console.log(error);
+        } else {
+          console.log(result);
+        }
+      });
+    }
+
+    // ทำเกี่ยวกับการลบ package
+    if (deletedPkgIds != "" ) {
+      const delpkgSQL = `
+        UPDATE package_in_cms SET deleted_at = ? WHERE pkg_id IN (?)
+      `
+      dbConn.query(delpkgSQL, [date, deletedPkgIds], function(error, result){
+        if (error) {
+          console.log(error);
+        }
+      })
+    }
+    
+
+
 
     return res.status(200).json({ status: 'ok', message: "แก้ไข cms สำเร็จ" });
   } catch (error) {

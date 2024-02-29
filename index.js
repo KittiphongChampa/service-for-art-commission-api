@@ -34,28 +34,30 @@ const nDate = new Date().toLocaleString('en-US', {
 });
 
 const onlineAdmins = new Map();
-global.onlineUsers = new Map(); 
+const onlineUsers = new Map(); 
+// global.onlineUsers = new Map(); 
 io.on('connection', (socket) => {
-  global.chatSocket = socket; 
+  // global.chatSocket = socket; 
   socket.on("add-user", (userId) => { 
     onlineUsers.set(userId, socket.id);
+    // io.emit("getUsers", Array.from(onlineUsers.entries())); // เพิ่มมาใหม่
   });
+
   socket.on("add-admin", (adminId) => {
     onlineAdmins.set(adminId, socket.id)
   })
 
-
   socket.on("disconnect", () => { 
     onlineUsers.forEach((value, key) => {
       if (value === socket.id) {
-        // onlineUsers.delete(key);
+        onlineUsers.delete(key);
+        // io.emit("getUsers", onlineUsers);
         console.log(`ผู้ใช้ ${key} ตัดการเชื่อมต่อออกไป`);
       }
     });
   });
 
   socket.on("send-msg", (data) => { 
-    console.log(data);
     const sendUserSocket = onlineUsers.get(data.to); 
 
     if (sendUserSocket) {
