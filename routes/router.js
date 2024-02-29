@@ -178,6 +178,11 @@ router.post("/getallorderdetail", orderController.getAllOrderDetail);
 router.post("/messages/updatestep", orderController.updateStep);
 router.post("/upload-img/progress/:id", orderController.sendImageProgress);
 router.get("/getPayment/order/:id", orderController.getPayment);
+router.post("/sendreview", orderController.sendReview);
+router.get("/getreq", auth.verifyToken, orderController.getMyReq);
+router.get("/getcmsreq", auth.verifyToken, orderController.getCmsReq);
+router.get("/getalltou/:od_id", orderController.getAllTou);
+router.post("/changeorder", orderController.changeOrder);
 
 
 // router.post("/test/:id", orderController.test);

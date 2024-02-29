@@ -223,14 +223,14 @@ exports.allchat = (req, res) => {
     messages.sender, 
     messages.receiver,
     (
-      SELECT MAX(sub_messages.step_id) 
-      FROM messages AS sub_messages 
-      WHERE messages.od_id = sub_messages.od_id
+        SELECT od_current_step_id
+        FROM cms_order 
+        WHERE messages.od_id = cms_order.od_id
     ) AS current_step,
     (
-      SELECT step_name 
-      FROM cms_steps 
-      WHERE current_step = cms_steps.step_id
+        SELECT step_name 
+        FROM cms_steps 
+        WHERE current_step = cms_steps.step_id
     ) AS current_step_name,
     messages.od_id,
     messages.step_id,
@@ -244,10 +244,10 @@ exports.allchat = (req, res) => {
   WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
   GROUP BY cms_order.artist_id, users.id, users.urs_name, users.urs_profile_img, messages.sender, messages.receiver, messages.od_id, messages.step_id
   ORDER BY MAX(messages.created_at) DESC, last_message_time DESC
-`;
+  `;
 
   // อันเดิม
-  const sql1 = `
+    const sql1 = `
     SELECT 
     cms_order.artist_id,
     messages.od_id,
@@ -255,19 +255,21 @@ exports.allchat = (req, res) => {
     users.urs_name,
     users.urs_profile_img,
     messages.sender,
-    messages.receiver,
+    messages.receiver,`
+    +
+    `
     (
-        SELECT MAX(sub_messages.step_id) 
-        FROM messages AS sub_messages 
-        WHERE messages.od_id = sub_messages.od_id
+        SELECT od_current_step_id
+        FROM cms_order 
+        WHERE messages.od_id = cms_order.od_id
     ) AS current_step,
     (
         SELECT step_name 
         FROM cms_steps 
         WHERE current_step = cms_steps.step_id
-    ) AS current_step_name,
-    messages.od_id,
-    messages.step_id,
+    ) AS current_step_name,`
+    + 
+    `
     MAX(messages.created_at) AS last_message_time,
     IFNULL(messages.od_id, 0) AS od_id
     FROM users
@@ -275,10 +277,9 @@ exports.allchat = (req, res) => {
     LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
     LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
     WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-    GROUP BY users.id, messages.sender, messages.receiver, messages.od_id, messages.step_id
+    GROUP BY users.id, messages.sender, messages.receiver, messages.od_id
     ORDER BY last_message_time DESC;
-
-  `
+    `
 
   const sql3 = `
   SELECT 
@@ -336,19 +337,32 @@ exports.allchat = (req, res) => {
     AND messages.created_at = recent_messages.last_message_time;
   `
 
-  dbConn.query(sql3, 
+  dbConn.query(sql1, 
     [myId, myId, myId],
     function (error, users) {
       if (error) {
         console.log(error);
         return res.json({ status: "error", message: "status error" });
       } else {
-        console.log(users);
-        console.log(users.length);
+        console.log(users.length)
         return res.json(users);
       }
     }
   );
+  
+  // dbConn.query(sql3, 
+  //   [myId, myId, myId],
+  //   function (error, users) {
+  //     if (error) {
+  //       console.log(error);
+  //       return res.json({ status: "error", message: "status error" });
+  //     } else {
+  //       console.log(users);
+  //       console.log(users.length);
+  //       return res.json(users);
+  //     }
+  //   }
+  // );
 
 };
 
@@ -420,7 +434,7 @@ exports.getMessages = (req, res, next) => {
                 od_id: row.od_id,
                 status: row.status,
                 checked: row.checked,
-                isSystemMsg: row.step_id !== 0,
+                isSystemMsg: row.step_id !== 0 || row.status !== null,
                 wip_sent: row.wip_sent,
                 msgId: row.msgId
                 // sender: row.sender

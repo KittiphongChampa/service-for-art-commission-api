@@ -280,17 +280,17 @@ exports.test = (req, res) => {
 //!------------------------------------------------------------
 
 exports.updateStep = (req, res) => {
-  console.log('ทำงาน req.body : ',req.body);
-  const { step_id, od_id, od_price, od_edit, deleted } = req.body;
+  console.log('ทำงาน req.body : ', req.body);
+  const { step_id, od_id, od_price, od_edit, deleted, paid, first_pay_paid } = req.body;
   try {
 
     if (od_price !== undefined) {
+      //ตั้งราคา
       const price = parseInt(od_price)
-      const halfPrice = price / 2
       dbConn.query(
-        `UPDATE cms_order SET od_price=?, od_first_pay=?, od_final_pay = ?
+        `UPDATE cms_order SET od_price=?
       WHERE od_id = ? `,
-        [price, halfPrice, halfPrice, od_id]
+        [price, od_id]
       )
     }
 
@@ -302,30 +302,63 @@ exports.updateStep = (req, res) => {
         [od_id]
       )
     } else if (deleted) {
+      //ลบภาพ
       dbConn.query(
         "UPDATE messages SET deleted_at = ? WHERE step_id = ?", [date, step_id],
       )
     } else {
+      if (first_pay_paid == null && paid !== undefined) {
+        //ถ้ายังไม่จ่ายครั้งแรก
+        dbConn.query(
+          "UPDATE cms_order SET od_first_pay = ? WHERE od_id = ?", [paid,od_id])
+      } else {
+        dbConn.query(
+          "UPDATE cms_order SET od_final_pay = ? WHERE od_id = ?", [paid, od_id])
+      }
+      
       //กรณีไม่ได้แก้ไขภาพ เช็คสเต็ป succeed ตามเดิม
       dbConn.query(
         "UPDATE cms_steps SET checked_at = ? WHERE step_id = ?", [date, step_id],
-      )
-      dbConn.query(
-        `SELECT step_id, od_id , checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
-      FROM cms_steps
-      WHERE od_id = ? AND checked_at IS NULL` ,
-        [od_id, od_id],
-        function (error, results) {
-          if (error) {
-            console.log(error);
-          }
-          res.json(results[0]);
+        function (error, aa) {
+          //เอาสเตปล่าสุดมา
+          dbConn.query(
+            `SELECT MIN(step_id) AS id
+            FROM cms_steps
+            WHERE od_id = ? AND checked_at IS NULL` ,
+            [od_id],
+            function (error, curStep) {
+              console.log("--------------")
+              dbConn.query(
+                `UPDATE cms_order
+                SET od_current_step_id = ?
+                WHERE od_id = ?` ,
+                [curStep[0].id, od_id],
+                function (error) {
+                  dbConn.query(
+                    `SELECT step_id, od_id ,
+                    checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
+                    FROM cms_steps
+                    WHERE od_id = ? AND checked_at IS NULL` ,
+                    [od_id, od_id],
+                    function (error, results) {
+                      if (error) {
+                        console.log(error);
+                      }
+                      res.json(results[0]);
+                    }
+                  );
+
+                }
+              )
+            }
+          )
+
         }
-      );
+      )
     }
+    //เช็ค1ทุกอันที่มีการดำเนินการแล้ว
+    //ให้เอาแมสไอดีมาด้วยตัวนี้เพื่อเปลี่ยนแวลู่ข้างใน
     dbConn.query(
-      //เช็ค1ทุกอันที่มีการดำเนินการแล้ว
-      //ให้เอาแมสไอดีมาด้วยตัวนี้เพื่อเปลี่ยนแวลู่ข้างใน
       `UPDATE messages SET checked = 1
       WHERE step_id = ? `,
       [step_id]
@@ -397,7 +430,15 @@ exports.getAllSteps = (req, res, next) => {
   try {
     const { od_id } = req.body;
     dbConn.query(
-      `SELECT step_id, od_id , checked_at,step_name,step_type ,(SELECT MAX(messages.step_id) FROM messages JOIN cms_steps ON messages.step_id = cms_steps.step_id WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
+      // `SELECT step_id, od_id , checked_at,step_name,step_type ,
+      // (SELECT MAX(messages.step_id) FROM messages
+      // JOIN cms_steps ON messages.step_id = cms_steps.step_id
+      // WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
+      // FROM cms_steps WHERE od_id = ?` ,
+      `SELECT step_id, od_id , checked_at,step_name,step_type ,
+      (SELECT MAX(messages.step_id) FROM messages
+      JOIN cms_steps ON messages.step_id = cms_steps.step_id
+      WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
       FROM cms_steps WHERE od_id = ?` ,
       [od_id],
       function (error, results) {
@@ -627,7 +668,8 @@ exports.sendImageProgress = async (req, res) => {
 exports.getPayment = (req, res) => {
   const orderId = req.params.id;
   const sql = `
-  SELECT cms_order.od_first_pay, cms_order.od_final_pay, cms_order.od_price, users.urs_account_name, users.urs_promptpay_number
+  SELECT cms_order.od_first_pay, cms_order.od_final_pay, cms_order.od_price, users.urs_account_name, users.urs_promptpay_number,
+  cms_order.od_price + od_edit_amount_price AS allprice
   FROM cms_order 
   JOIN users ON cms_order.artist_id = users.id
   WHERE od_id = ?
@@ -640,3 +682,212 @@ exports.getPayment = (req, res) => {
     return res.status(200).json({status: 'ok', PaymentData})
   })
 };
+
+exports.sendReview = (req, res) => {
+  const { od_id, rw_comment, rw_score, cms_id, artist_id, all } = req.body;
+  try {
+    dbConn.query(
+      `INSERT INTO review (rw_comment,rw_score,od_id) VALUES (?,?,?)`
+      , [rw_comment, rw_score, od_id],
+      function (error, insertResult) {
+        if (error) {
+          console.error(error);
+          // จัดการข้อผิดพลาดตามต้องการ
+          return;
+        }
+        // query ถูกเรียกใช้งานเสร็จสมบูรณ์ ทำการ query ต่อ
+        dbConn.query(
+          `SELECT rw_score
+      FROM review
+      JOIN cms_order ON cms_order.od_id = review.od_id
+      WHERE cms_order.cms_id = ? `,
+          [cms_id],
+          function (error, allOdRw) {
+            if (error) {
+              console.error(error);
+              return;
+            }
+            const total = allOdRw.reduce(function (previousValue, currentValue) {
+              return {
+                rw_score: previousValue.rw_score + currentValue.rw_score
+              };
+            });
+            const sum_score = total.rw_score / allOdRw.length
+            const avg_cms_review = sum_score.toFixed(1)
+            console.log(avg_cms_review);
+
+            //อัปเดตลงใน commission
+
+            dbConn.query(
+              `UPDATE commission
+              SET cms_all_review = ?
+              WHERE cms_id = ?`
+              , [avg_cms_review, cms_id],
+              function (error, aaa) {
+                if (error) {
+                  console.error(error);
+                  return;
+                }
+                dbConn.query(
+                  `SELECT cms_all_review
+                  FROM commission
+                  WHERE usr_id = ? AND cms_all_review IS NOT NULL`,
+                  [artist_id],
+                  function (error, allCmsRw) {
+                    const total2 = allCmsRw.reduce(function (previousValue, currentValue) {
+                      return {
+                        cms_all_review: previousValue.cms_all_review + currentValue.cms_all_review
+                      };
+                    });
+
+                    const sum_score2 = total2.cms_all_review / allCmsRw.length
+                    const avg_urs_review = sum_score2.toFixed(1)
+                    console.log(allCmsRw.length, avg_urs_review)
+                    // console.log(artist_id)
+                    dbConn.query(
+                      `UPDATE users
+                      SET urs_all_review = ?
+                      WHERE id = ?`
+                      , [avg_urs_review, artist_id],
+                      function (error, res) {
+                        if (error) {
+                          console.error(error);
+                          return;
+                        }
+                      }
+                    )
+                  }
+                )
+              }
+            )
+
+          }
+        );
+      }
+    )
+  }
+  catch {
+    return res.json({
+      status: "error",
+      message: "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง",
+    });
+  }
+}
+
+
+exports.getMyReq = (req, res) => {
+  const userID = req.user.userId;
+  try {
+    dbConn.query(
+      `SELECT od_id,od_price , cms_name,od_cancel_by , pkg_name , ordered_at, (SELECT urs_name FROM users WHERE id = cms_order.artist_id) AS artist_name,
+      (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
+      FROM cms_order
+      JOIN commission ON commission.cms_id = cms_order.cms_id
+      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id
+      WHERE cms_order.customer_id = ?
+      ORDER BY ordered_at` ,
+      [userID],
+      function (error, results) {
+        if (error) {
+          console.log(error);
+          res.status(500)
+        }
+        console.log(results);
+        res.status(200).json(results);
+      }
+    );
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+exports.getCmsReq = (req, res) => {
+  const userID = req.user.userId;
+  try {
+    dbConn.query(
+      `SELECT *,
+      (SELECT pkg_duration FROM package_in_cms WHERE cms_order.pkg_id = package_in_cms.pkg_id ) AS pkg_duration ,
+      (SELECT urs_name FROM users WHERE id = cms_order.customer_id) AS customer_name,
+      (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
+      FROM cms_order
+      JOIN commission ON commission.cms_id = cms_order.cms_id
+      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id
+      WHERE cms_order.customer_id = ?
+      ORDER BY ordered_at` ,
+      [userID],
+      function (error, results) {
+        res.json(results);
+      }
+    );
+  } catch (error) {
+    console.log(error)
+  }
+}
+
+exports.getAllTou = (req, res) => {
+  const od_id = req.params.od_id;
+  try {
+    dbConn.query(
+      `SELECT *,
+      (SELECT tou_id FROM cms_order WHERE od_id = ?) AS old_tou,
+      (SELECT tou_name FROM cms_order WHERE od_id = ?) AS old_tou_name
+      FROM type_of_use` ,
+      [od_id, od_id],
+      function (error, results) {
+        res.json(results);
+      }
+    );
+  } catch (error) {
+    console.log(error)
+  }
+
+}
+
+
+exports.changeOrder = (req, res) => {
+  const { od_id, od_price, tou_id, checkPrice, checkTou } = req.body;
+  console.log(req.body)
+  try {
+    if (checkPrice) {
+      console.log("เช้คราคา")
+      dbConn.query(
+        `UPDATE cms_order
+      SET od_price = ?
+      WHERE od_id = ?` ,
+        [od_price, od_id]
+      );
+    }
+    if (checkTou) {
+      console.log("เช้ค tou")
+      dbConn.query(
+        `UPDATE cms_order
+      SET od_tou = ?
+      WHERE od_id = ?` ,
+        [tou_id, od_id]
+      );
+    }
+  } catch (error) {
+    console.log(error)
+  }
+
+}
+
+
+exports.cancelOrder = (req, res) => {
+  const { od_id } = req.body;
+  console.log(req.body)
+  try {
+    dbConn.query(
+      `UPDATE cms_order
+      SET od_cancel_by = ?
+      WHERE od_id = ?` ,
+      [date, od_id]
+    ), function (error, res) {
+
+
+    }
+    //ให้ทำการขยับคิวต่อ
+  } catch (error) {
+    console.log(error)
+  }
+}

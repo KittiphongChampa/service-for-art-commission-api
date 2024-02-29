@@ -42,21 +42,32 @@ exports.addCommission = (req, res) => {
         //มี 2 ขั้นตอน มี 0 และ 1
         //half = 1
         //ถ้ามี 2 ขั้นตอนเข้า 2 เงื่อนไขแรก ถ้ามี 1 ขั้นตอนเข้า 3 เงื่อนไข
+        // let count = 0;
+        // if (index == 0) {
+        //   newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
+        //   count += 1;
+        // }
+
+        // if (count <= 1) newAllSteps += "ภาพ" + wip +","
+        
+        // if (index == halfWip) {
+        //   newAllSteps += "แนบสลิป2,ตรวจสอบใบเสร็จ2,"
+        //   count += 1;
+        // }
+        // if (index == allWipArr.length - 1) {
+        //   newAllSteps += "ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
+        //   count += 1;
+        // }
+
         let count = 0;
+        //ภาพเส้นเปล่า ภาพลงสีพื้น ภาพลงสีเต็ม
         if (index == 0) {
           newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
-          count += 1;
         }
+        newAllSteps += "ภาพ" + wip + ","
 
-        if (count <= 1) newAllSteps += "ภาพ" + wip +","
-        
-        if (index == halfWip) {
-          newAllSteps += "แนบสลิป2,ตรวจสอบใบเสร็จ2,"
-          count += 1;
-        }
         if (index == allWipArr.length - 1) {
-          newAllSteps += "ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
-          count += 1;
+          newAllSteps += "ภาพไฟนัล,แนบสลิป2,ตรวจสอบใบเสร็จ2,แอดมินอนุมัติ,รีวิว"
         }
       })
 
