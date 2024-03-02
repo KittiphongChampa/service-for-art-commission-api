@@ -161,124 +161,40 @@ exports.index = (req, res) => {
 
 exports.allchat = (req, res) => {
   const myId = req.user.userId;
-  // const sql1 = `
-  // SELECT 
-  //   cms_order.artist_id,
-  //   messages.od_id,
-  //   users.id,
-  //   users.urs_name,
-  //   users.urs_profile_img,
-  //   messages.sender,
-  //   messages.receiver,
-  //   (SELECT MAX(sub_messages.step_id) FROM messages AS sub_messages WHERE messages.od_id = sub_messages.od_id) AS current_step,
-  //   (SELECT step_name FROM cms_steps WHERE current_step = cms_steps.step_id) AS current_step_name,
-  //   messages.od_id,
-  //   messages.step_id,
-  //   MAX(messages.created_at) AS last_message_time,
-  //   IFNULL(messages.od_id, 0) AS od_id
-  // FROM users
-  // JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-  // LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-  // LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-  // WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-  // GROUP BY users.id, messages.sender, messages.receiver, messages.od_id, messages.step_id
-  // ORDER BY last_message_time DESC;
 
-  // `
-
-
-  // const sql1 = `
-  //   SELECT 
-  //     cms_order.artist_id,
-  //     users.id, users.urs_name, users.urs_profile_img,
-  //     messages.sender, 
-  //     messages.receiver,
-  //     (
-  //       SELECT MAX(sub_messages.step_id) 
-  //       FROM messages AS sub_messages 
-  //       WHERE messages.od_id = sub_messages.od_id
-  //     ) AS current_step,
-  //     (
-  //       SELECT step_name 
-  //       FROM cms_steps 
-  //       WHERE current_step = cms_steps.step_id
-  //     ) AS current_step_name,
-  //     messages.od_id,
-  //     messages.step_id,
-  //     messages.message_text,
-  //     IFNULL(messages.od_id, 0) AS od_id
-  //   FROM users
-  //   JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-  //   LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-  //   LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-  //   WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-  //   ORDER BY messages.created_at DESC
-  // `
-
-  // แบบใหม่ กำลังเขียน
-  const sql2 = `
-  SELECT 
-    cms_order.artist_id,
-    users.id, users.urs_name, users.urs_profile_img,
-    messages.sender, 
-    messages.receiver,
-    (
-        SELECT od_current_step_id
-        FROM cms_order 
-        WHERE messages.od_id = cms_order.od_id
-    ) AS current_step,
-    (
-        SELECT step_name 
-        FROM cms_steps 
-        WHERE current_step = cms_steps.step_id
-    ) AS current_step_name,
-    messages.od_id,
-    messages.step_id,
-    MAX(messages.created_at) AS last_message_time,
-    MAX(messages.message_text) AS latest_message_text,
-    IFNULL(messages.od_id, 0) AS od_id
-  FROM users
-  JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-  LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-  LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-  WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-  GROUP BY cms_order.artist_id, users.id, users.urs_name, users.urs_profile_img, messages.sender, messages.receiver, messages.od_id, messages.step_id
-  ORDER BY MAX(messages.created_at) DESC, last_message_time DESC
-  `;
-
-  // อันเดิม
+  // ตอนนี้ใช้อันนี้
     const sql1 = `
-    SELECT 
-    cms_order.artist_id,
-    messages.od_id,
-    users.id,
-    users.urs_name,
-    users.urs_profile_img,
-    messages.sender,
-    messages.receiver,`
-    +
-    `
-    (
-        SELECT od_current_step_id
-        FROM cms_order 
-        WHERE messages.od_id = cms_order.od_id
-    ) AS current_step,
-    (
-        SELECT step_name 
-        FROM cms_steps 
-        WHERE current_step = cms_steps.step_id
-    ) AS current_step_name,`
-    + 
-    `
-    MAX(messages.created_at) AS last_message_time,
-    IFNULL(messages.od_id, 0) AS od_id
-    FROM users
-    JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-    LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-    LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-    WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-    GROUP BY users.id, messages.sender, messages.receiver, messages.od_id
-    ORDER BY last_message_time DESC;
+      SELECT 
+      cms_order.artist_id,
+      messages.od_id,
+      users.id,
+      users.urs_name,
+      users.urs_profile_img,
+      messages.sender,
+      messages.receiver, `
+      +
+      `
+      (
+          SELECT od_current_step_id
+          FROM cms_order 
+          WHERE messages.od_id = cms_order.od_id
+      ) AS current_step,
+      (
+          SELECT step_name 
+          FROM cms_steps 
+          WHERE current_step = cms_steps.step_id
+      ) AS current_step_name,`
+      + 
+      `
+      MAX(messages.created_at) AS last_message_time,
+      IFNULL(messages.od_id, 0) AS od_id
+      FROM users
+      JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
+      LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
+      LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
+      WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
+      GROUP BY users.id, messages.sender, messages.receiver, messages.od_id
+      ORDER BY last_message_time DESC
     `
 
   const sql3 = `
@@ -297,73 +213,134 @@ exports.allchat = (req, res) => {
   WHERE 
     (messages.sender = ? OR messages.receiver = ?) 
     AND users.id != ?
-  ORDER BY messages.created_at DESC;
+  ORDER BY messages.created_at DESC
   `
 
   const sql4 = `
- SELECT 
-    users.id, 
-    users.urs_name, 
-    users.urs_profile_img,
-    messages.sender, 
-    messages.receiver, 
-    messages.message_text, 
-    messages.created_at
-  FROM 
-    users
-  JOIN 
-    (SELECT 
-        CASE 
-            WHEN messages.sender = ? THEN messages.receiver 
-            ELSE messages.sender 
-        END AS contact_id,
-        MAX(created_at) AS last_message_time
+  SELECT 
+    sub_query.id,
+    sub_query.urs_name,
+    sub_query.urs_profile_img,
+    sub_query.sender,
+    sub_query.receiver,
+    sub_query.message_text,
+    sub_query.created_at AS last_message_time
+  FROM (
+      SELECT 
+        users.id, 
+        users.urs_name, 
+        users.urs_profile_img,
+        messages.sender, 
+        messages.receiver, 
+        messages.message_text, 
+        messages.created_at,
+        
+        ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
+      FROM 
+          users
+      JOIN 
+          messages ON (users.id = messages.sender OR users.id = messages.receiver)
+      
+      WHERE 
+          (messages.sender = ? OR messages.receiver = ?) 
+          AND users.id != ?
+          AND messages.deleted_at IS NULL
+  ) AS sub_query
+  WHERE rn = 1
+  ORDER BY last_message_time DESC;
+
+  `
+  const sql5 = `
+  SELECT 
+    sub_query.artist_id,
+    sub_query.od_id,
+
+    sub_query.id,
+    sub_query.urs_name,
+    sub_query.urs_profile_img,
+    sub_query.sender,
+    sub_query.receiver,
+    sub_query.message_text,
+    sub_query.created_at AS last_message_time,
+    sub_query.current_step,
+    sub_query.current_step_name
+  FROM (
+    SELECT 
+      cms_order.artist_id,
+      messages.od_id,
+
+      users.id, 
+      users.urs_name, 
+      users.urs_profile_img,
+      messages.sender, 
+      messages.receiver, 
+      messages.message_text, 
+      messages.created_at,
+      (
+        SELECT od_current_step_id
+        FROM cms_order 
+        WHERE messages.od_id = cms_order.od_id
+      ) AS current_step,
+      (
+          SELECT step_name 
+          FROM cms_steps 
+          WHERE current_step = cms_steps.step_id
+      ) AS current_step_name,
+      
+      ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
     FROM 
-        messages
+        users
+    JOIN 
+        messages ON (users.id = messages.sender OR users.id = messages.receiver)
+    LEFT JOIN 
+        cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
+    LEFT JOIN 
+        cms_steps ON cms_steps.step_id = messages.step_id
     WHERE 
-      messages.sender = ? OR messages.receiver = ?
-    GROUP BY 
-        CASE 
-            WHEN messages.sender = ? THEN messages.receiver 
-            ELSE messages.sender 
-        END) AS recent_messages
-  ON
-    users.id = recent_messages.contact_id
-  JOIN 
-    messages
-  ON 
-    (messages.sender = ? AND messages.receiver = users.id)
-    OR (messages.receiver = ? AND messages.sender = users.id)
-    AND messages.created_at = recent_messages.last_message_time;
+        (messages.sender = ? OR messages.receiver = ?) 
+        AND users.id != ?
+        AND messages.deleted_at IS NULL
+        AND cms_order.artist_id IS NOT NULL
+        AND messages.od_id IS NOT NULL
+  ) AS sub_query
+  WHERE rn = 1
+  ORDER BY last_message_time DESC;
   `
 
-  dbConn.query(sql1, 
-    [myId, myId, myId],
-    function (error, users) {
+  dbConn.query(sql4, 
+    [myId, myId, myId, myId],
+    function (error, contacts) {
       if (error) {
         console.log(error);
         return res.json({ status: "error", message: "status error" });
-      } else {
-        console.log(users.length)
-        return res.json(users);
-      }
+      } 
+      console.log(contacts);
+      dbConn.query(sql5, 
+        [myId, myId, myId, myId],
+        function (error, contacts_order) {
+          if (error) {
+            console.log(error);
+            return res.json({ status: "error", message: "status error" });
+          } else {
+            console.log(contacts_order)
+            return res.json({contacts, contacts_order });
+          }
+        }
+      );
     }
   );
-  
-  // dbConn.query(sql3, 
+
+  // dbConn.query(sql1, 
   //   [myId, myId, myId],
   //   function (error, users) {
   //     if (error) {
   //       console.log(error);
   //       return res.json({ status: "error", message: "status error" });
-  //     } else {
-  //       console.log(users);
-  //       console.log(users.length);
-  //       return res.json(users);
-  //     }
+  //     } 
+  //     console.log(users)
+  //     return res.json(users);
   //   }
   // );
-
 };
 
 exports.getMessages = (req, res, next) => {
