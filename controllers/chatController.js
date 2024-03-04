@@ -19,7 +19,12 @@ const dbConn = mysql.createConnection(process.env.DATABASE_URL)
 
 let date = new Date();
 let options = { timeZone: "Asia/Bangkok" };
-let bangkokTime = date.toLocaleString("en-US", options);
+let bangkokTime = date.toLocaleString("th-TH", options);
+
+// let currentTime = new Date();
+// console.log(currentTime.toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }))
+
+// นำ date หรือ currentTime ไปบันทึกแทน current_Timestamp
 
 exports.chatPartner = (req, res) => {
     const partnerID = req.params.id;
@@ -63,102 +68,6 @@ exports.index = (req, res) => {
     }
 };
 
-// exports.allchat = (req, res) => {
-//     const myId = req.params.id;
-//     dbConn.query(
-//       "SELECT users.id, users.urs_name, users.urs_profile_img, messages.sender, messages.receiver, messages.message_text, MAX(messages.created_at) AS last_message_time " +
-//       "FROM users " +
-//       "JOIN messages ON ((users.id = messages.receiver) OR (users.id = messages.sender)) WHERE ((messages.receiver = ?) OR (messages.sender = ?)) AND users.id != ? " +
-//       "GROUP BY users.id, users.urs_name, users.urs_profile_img, messages.sender, messages.receiver, messages.message_text " +
-//       "ORDER BY last_message_time DESC", // เพิ่ม ORDER BY เพื่อเรียงลำดับตามเวลาของข้อความที่ถูกส่งล่าสุด
-//       [myId,myId,myId],
-//       function (error, users) {
-//         if (error) {
-//           return res.json({ status: "error", message: "status error" });
-//         } else {
-//           return res.json(users);
-//         }
-//       }
-//     );
-// };
-
-// exports.getMessages = (req, res, next) => {
-//     // console.log('เข้า getMessages ', req.body);
-//     try {
-//       const { from, to } = req.body;
-//       dbConn.query(
-//         "SELECT sender, receiver, message_text, created_at FROM messages WHERE sender IN (?, ?) AND receiver IN (?, ?)",
-//         [from, to, from, to],
-//         function (error, results) {
-//           const projectedMessages = results.map((row) => {
-//             return {
-//               fromSelf: row.sender.toString() == from,
-//               message: row.message_text,
-//               created_at: row.created_at,
-//             };
-//           });
-//           res.json(projectedMessages);
-//         }
-//       );
-//     } catch (ex) {
-//       next(ex);
-//     }
-// };
-
-// exports.addMessages = (req, res, next) => {
-//     try {
-//       if (req.files === undefined) {
-//         // return res.json({ status: "error", message: "No File Uploaded" });
-//         //-----------------------------------------------------------------------------
-//         const { from, to, message } = req.body;
-//         dbConn.query(
-//           "INSERT INTO messages (sender, receiver, message_text) VALUES (?, ?, ?)",
-//           [from, to, message],
-//           function(error, result){
-//             // console.log(result.affectedRows);
-//             if (result.affectedRows > 0) {
-//               return res.json({ msg: "Message added successfully." });
-//             } else {
-//               return res.json({ msg: "Failed to add message to the database." });
-//             }
-//           }
-//         )
-//         //-----------------------------------------------------------------------------
-//       } else {
-//         const { from, to } = req.body;
-//         const file = req.files.image;
-//         var filename_random = __dirname.split("controllers")[0] + "/public/images_chat/" + randomstring.generate(50) + ".jpg";
-//         if (fs.existsSync("filename_random")) {
-//           filename_random =
-//             __dirname.split("controllers")[0] +
-//             "/public/images_chat/" +
-//             randomstring.generate(60) +
-//             ".jpg";
-//           file.mv(filename_random);
-//         } else {
-//           file.mv(filename_random);
-//         }
-//         const image = filename_random.split("/public")[1];
-//         const image_chat = `${req.protocol}://${req.get("host")}${image}`;
-//         // console.log(image_chat);
-//         dbConn.query(
-//           "INSERT INTO messages (sender, receiver, message_text) VALUES (?, ?, ?)",
-//           [from, to, image_chat],
-//           function(error, result){
-//             // console.log(result.affectedRows);
-//             if (result.affectedRows > 0) {
-//               return res.json({ image_chat, msg: "Message added successfully." });
-//             } else {
-//               return res.json({ msg: "Failed to add message to the database." });
-//             }
-//           }
-//         )
-//       }
-//     } catch (ex) {
-//       next(ex);
-//     }
-// };
-
 exports.allchat = (req, res) => {
   const myId = req.user.userId;
 
@@ -166,7 +75,6 @@ exports.allchat = (req, res) => {
     const sql1 = `
       SELECT 
       cms_order.artist_id,
-      messages.od_id,
       users.id,
       users.urs_name,
       users.urs_profile_img,
@@ -197,25 +105,6 @@ exports.allchat = (req, res) => {
       ORDER BY last_message_time DESC
     `
 
-  const sql3 = `
-  SELECT 
-    users.id, 
-    users.urs_name, 
-    users.urs_profile_img,
-    messages.sender, 
-    messages.receiver, 
-    messages.message_text, 
-    messages.created_at
-  FROM 
-    users
-  JOIN 
-    messages ON (users.id = messages.sender OR users.id = messages.receiver)
-  WHERE 
-    (messages.sender = ? OR messages.receiver = ?) 
-    AND users.id != ?
-  ORDER BY messages.created_at DESC
-  `
-
   const sql4 = `
   SELECT 
     sub_query.id,
@@ -224,6 +113,7 @@ exports.allchat = (req, res) => {
     sub_query.sender,
     sub_query.receiver,
     sub_query.message_text,
+    sub_query.od_id,
     sub_query.created_at AS last_message_time
   FROM (
       SELECT 
@@ -233,6 +123,7 @@ exports.allchat = (req, res) => {
         messages.sender, 
         messages.receiver, 
         messages.message_text, 
+        IFNULL(messages.od_id, 0) AS od_id,
         messages.created_at,
         
         ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
@@ -245,6 +136,7 @@ exports.allchat = (req, res) => {
           (messages.sender = ? OR messages.receiver = ?) 
           AND users.id != ?
           AND messages.deleted_at IS NULL
+          AND messages.od_id IS NULL
   ) AS sub_query
   WHERE rn = 1
   ORDER BY last_message_time DESC;
@@ -254,28 +146,26 @@ exports.allchat = (req, res) => {
   SELECT 
     sub_query.artist_id,
     sub_query.od_id,
-
     sub_query.id,
     sub_query.urs_name,
     sub_query.urs_profile_img,
     sub_query.sender,
     sub_query.receiver,
     sub_query.message_text,
-    sub_query.created_at AS last_message_time,
+    sub_query.last_message_time,
     sub_query.current_step,
     sub_query.current_step_name
   FROM (
     SELECT 
       cms_order.artist_id,
-      messages.od_id,
-
+      IFNULL(messages.od_id, 0) AS od_id,
       users.id, 
       users.urs_name, 
       users.urs_profile_img,
       messages.sender, 
       messages.receiver, 
-      messages.message_text, 
-      messages.created_at,
+      MAX(messages.message_text) as message_text,
+      MAX(messages.created_at) AS last_message_time,
       (
         SELECT od_current_step_id
         FROM cms_order 
@@ -285,9 +175,7 @@ exports.allchat = (req, res) => {
           SELECT step_name 
           FROM cms_steps 
           WHERE current_step = cms_steps.step_id
-      ) AS current_step_name,
-      
-      ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
+      ) AS current_step_name
     FROM 
         users
     JOIN 
@@ -302,9 +190,13 @@ exports.allchat = (req, res) => {
         AND messages.deleted_at IS NULL
         AND cms_order.artist_id IS NOT NULL
         AND messages.od_id IS NOT NULL
+    GROUP BY 
+        users.id, 
+        messages.sender, 
+        messages.receiver, 
+        messages.od_id
   ) AS sub_query
-  WHERE rn = 1
-  ORDER BY last_message_time DESC;
+  ORDER BY sub_query.last_message_time DESC;
   `
 
   dbConn.query(sql4, 
@@ -314,33 +206,18 @@ exports.allchat = (req, res) => {
         console.log(error);
         return res.json({ status: "error", message: "status error" });
       } 
-      console.log(contacts);
       dbConn.query(sql5, 
-        [myId, myId, myId, myId],
+        [myId, myId, myId],
         function (error, contacts_order) {
           if (error) {
             console.log(error);
             return res.json({ status: "error", message: "status error" });
-          } else {
-            console.log(contacts_order)
-            return res.json({contacts, contacts_order });
-          }
+          } 
+          return res.json({contacts, contacts_order });
         }
       );
     }
   );
-
-  // dbConn.query(sql1, 
-  //   [myId, myId, myId],
-  //   function (error, users) {
-  //     if (error) {
-  //       console.log(error);
-  //       return res.json({ status: "error", message: "status error" });
-  //     } 
-  //     console.log(users)
-  //     return res.json(users);
-  //   }
-  // );
 };
 
 exports.getMessages = (req, res, next) => {
@@ -442,8 +319,8 @@ exports.addMessages = (req, res, next) => {
         // order_id = null
         // console.log('dssdsdsdsd=',req.body);
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id,step_id,checked,status) VALUES (?, ?, ?, ?, ?, ?,?)",
-          [from, to, message, order_id, step_id, checked, status],
+          "INSERT INTO messages (sender, receiver, message_text,od_id,step_id,checked,status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+          [from, to, message, order_id, step_id, checked, status, date],
           function (error, result) {
             if (result.affectedRows > 0) {
               return res.json({ msg: "Message added successfully." });
@@ -455,8 +332,8 @@ exports.addMessages = (req, res, next) => {
         )
       } else {
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id) VALUES (?, ?, ?, ?)",
-          [from, to, message, order_id],
+          "INSERT INTO messages (sender, receiver, message_text,od_id, created_at) VALUES (?, ?, ?, ?, ?)",
+          [from, to, message, order_id, date],
           function (error, result) {
             // console.log(result.affectedRows);
             if (result.affectedRows > 0) {
@@ -468,7 +345,6 @@ exports.addMessages = (req, res, next) => {
         )
 
       }
-
 
       //-----------------------------------------------------------------------------
     } else {
@@ -495,8 +371,8 @@ exports.addMessages = (req, res, next) => {
       const image_chat = `${req.protocol}://${req.get("host")}${image}`;
       // console.log(image_chat);
       dbConn.query(
-        "INSERT INTO messages (sender, receiver, message_text,od_id) VALUES (?, ?, ?,?)",
-        [from, to, image_chat, od_id],
+        "INSERT INTO messages (sender, receiver, message_text, od_id, created_at) VALUES (?, ?, ?, ?, ?)",
+        [from, to, image_chat, od_id, date],
         function (error, result) {
           // console.log(result.affectedRows);
           if (result.affectedRows > 0) {

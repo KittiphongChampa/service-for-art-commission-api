@@ -183,8 +183,8 @@ exports.galloryAdd = async (req, res) => {
             const insertArtwork = (artworkDesc, userId) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO artwork SET artw_desc=?, usr_id=?  
-                    `, [artworkDesc, userId], (error, results) => {
+                    INSERT INTO artwork SET artw_desc=?, usr_id=? ,created_at=? 
+                    `, [artworkDesc, userId, date], (error, results) => {
                         if (error) {
                             reject(error);
                         } else {
@@ -224,8 +224,8 @@ exports.galloryAdd = async (req, res) => {
             const insertExample_img = (image_name, image_path, artw2_id) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?
-                    `, [image_name, image_path, userId, artw2_id], (error, resul) => {
+                    INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?, created_at=?
+                    `, [image_name, image_path, userId, artw2_id, date], (error, resul) => {
                         if (error) {
                             console.error('Error inserting record:', error);
                             reject(error);
@@ -261,8 +261,8 @@ exports.galloryAdd = async (req, res) => {
             const insertArtwork = (ex_img_id, artworkDesc, userId) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?  
-                    `, [ex_img_id, artworkDesc, userId], (error, results) => {
+                    INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?, created_at=?
+                    `, [ex_img_id, artworkDesc, userId, date], (error, results) => {
                         if (error) {
                             reject(error);
                         } else {

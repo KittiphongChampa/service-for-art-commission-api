@@ -337,8 +337,8 @@ exports.reportArtwork = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, artw_id],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?, created_at=?',
+            [rpheader, rpdetail, rpemail, myId, usr_id, artw_id, date],
             function(err, result){
                 if (err) {
                     console.log(error);
@@ -355,8 +355,8 @@ exports.reportArtwork = (req, res) => {
                 return res.status(500).json({error})
             }
             const usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, artw_id],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?, created_at=?',
+            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, artw_id, date],
             function(error, result){
                 if (error) {
                     console.log(error);
@@ -381,8 +381,8 @@ exports.reportCommission = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, cms_id],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?, created_at=?',
+            [rpheader, rpdetail, rpemail, myId, usr_id, cms_id, date],
             function(err, result){
                 if (err) {
                     console.log(error);
@@ -399,8 +399,8 @@ exports.reportCommission = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, cms_id],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?, created_at=?',
+            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, cms_id, date],
             function(err, result){
                 if (err) {
                     console.log(error);

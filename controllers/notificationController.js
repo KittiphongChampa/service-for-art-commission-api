@@ -16,7 +16,7 @@ let bangkokTime = date.toLocaleString("en-US", options);
 // admin
 exports.addNotiArtwork = (req, res) => {
     const {reporter, reported, msg, reportId} = req.body;
-    dbConn.query(`INSERT INTO notification SET noti_text=?, sender_id=?, receiver_id=?, rp_id=?`,[msg, reporter, reported, reportId], function(error, results){
+    dbConn.query(`INSERT INTO notification SET noti_text=?, sender_id=?, receiver_id=?, rp_id=?, created_at=?`,[msg, reporter, reported, reportId, date], function(error, results){
         if (error) {
             console.log('เข้า error');
             console.log(error);
@@ -103,8 +103,8 @@ exports.getNoti = (req, res, next) => {
 exports.notiAdd = (req, res) => {
     const {sender_id, receiver_id, msg, order_id} = req.body;
     dbConn.query(`
-        INSERT INTO notification SET sender_id=?, receiver_id=?, noti_text=?, od_id=?
-    `, [sender_id, receiver_id, msg, order_id], function(error, results){
+        INSERT INTO notification SET sender_id=?, receiver_id=?, noti_text=?, od_id=?, created_at=?
+    `, [sender_id, receiver_id, msg, order_id, date], function(error, results){
         if ( error ) {
             console.log(error);
             console.log("notiOrderAdd error");

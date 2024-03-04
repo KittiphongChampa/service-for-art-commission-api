@@ -15,11 +15,11 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.addCommission = (req, res) => {
   // console.log(req.body);
-    function insertCommission(data, userId) {
+    function insertCommission(data, userId, date) {
       return new Promise((resolve, reject) => {
         dbConn.query(
-            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, cms_status=?, usr_id=?",
-            [...data, userId],
+            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, cms_status=?, usr_id=?, created_at=?",
+            [...data, userId, date],
             (error, results) => {
             if (error) {
                 reject(error);
@@ -32,7 +32,7 @@ exports.addCommission = (req, res) => {
       });
     }
   
-    function insertPackage(data, step, commissionId, userId) {
+    function insertPackage(data, step, commissionId, userId, date) {
       // console.log('step',step);
       // console.log('step',step.split(',').length);
       const allWipArr = step.split(',')
@@ -75,8 +75,8 @@ exports.addCommission = (req, res) => {
 
       return new Promise((resolve, reject) => {
         dbConn.query(
-          "INSERT INTO package_in_cms SET pkg_name=?, pkg_desc=?, pkg_min_price=?, pkg_duration=?, pkg_edits=?, cms_step=?, cms_id=?, usr_id=?",
-          [...data, newAllSteps, commissionId, userId],
+          "INSERT INTO package_in_cms SET pkg_name=?, pkg_desc=?, pkg_min_price=?, pkg_duration=?, pkg_edits=?, cms_step=?, cms_id=?, usr_id=?, created_at=?",
+          [...data, newAllSteps, commissionId, userId, date],
           //รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,...ขั้นตอน,แนบสลิป2มตรวจสอบใบเสร็จ2,...ขั้นตอน,ภาพไฟนัล,แอดมินอนุมัติผลงาน,รีวิว
           (error, result) => {
           if (error) {
@@ -158,11 +158,11 @@ exports.addCommission = (req, res) => {
       });
     }
   
-    function insertExampleImage(image, commissionId, userId) {
+    function insertExampleImage(image, commissionId, userId, date) {
       return new Promise((resolve, reject) => {
         dbConn.query(
-          "INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, cms_id=?, usr_id=?",
-          [...image, commissionId, userId],
+          "INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, cms_id=?, usr_id=?, created_at=?",
+          [...image, commissionId, userId, date],
           (error, result) => {
             if (error) {
               reject(error);
@@ -213,7 +213,7 @@ exports.addCommission = (req, res) => {
       //insert cms
       const cms_status = "open";
       const commissionPromise = insertCommission(
-          [commission_name, commission_description, commission_que, good, bad, no_talking, cms_status],userId
+          [commission_name, commission_description, commission_que, good, bad, no_talking, cms_status],userId, date
       );
       commissionPromise.then((commissionId) => {
   
@@ -225,7 +225,8 @@ exports.addCommission = (req, res) => {
               [package_name[i], package_detail[i], price[i], duration[i], edits[i]],
               step[i],
               commissionId,
-              userId
+              userId,
+              date
             );
           }
           console.log();
@@ -234,7 +235,8 @@ exports.addCommission = (req, res) => {
             [package_name, package_detail, price, duration, edits],
             step,
             commissionId,
-            userId
+            userId,
+            date
           );
         }
   
@@ -275,7 +277,8 @@ exports.addCommission = (req, res) => {
                     const ExampleImagePromise = insertExampleImage(
                       [image_name, image_cms],
                       commissionId,
-                      userId
+                      userId,
+                      date
                     );
   
                     ExampleImagePromise.then((ExampleImageId) => {
@@ -303,7 +306,7 @@ exports.addCommission = (req, res) => {
           const image_name = image_cms.split("/images_cms/")[1];
   
           const ExampleImagePromise = insertExampleImage(
-            [image_name, image_cms], commissionId, userId
+            [image_name, image_cms], commissionId, userId, date
           );
   
           allQueries.push(ExampleImagePromise);
@@ -337,15 +340,18 @@ exports.addCommission = (req, res) => {
 exports.latestCommission = (req, res) => {
     const query = `
     SELECT 
-      commission.cms_id, 
-      commission.cms_name, 
-      commission.cms_desc, 
-      example_img.ex_img_path, 
-      example_img.status,
-      users.id, 
-      users.urs_name,
-      package_in_cms.pkg_id, 
-      package_in_cms.pkg_min_price
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        commission.cms_status,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        COUNT(cms_order.rw_id) AS total_reviews
     FROM 
         commission
     JOIN 
@@ -354,6 +360,8 @@ exports.latestCommission = (req, res) => {
         users ON commission.usr_id = users.id
     JOIN 
         package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
     WHERE 
         commission.deleted_at IS NULL 
         AND commission.cms_id NOT IN (
@@ -361,15 +369,27 @@ exports.latestCommission = (req, res) => {
             FROM example_img
             WHERE status = 'failed'
         )
+    GROUP BY 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_all_review,
+        commission.cms_status,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price
     ORDER BY 
         commission.created_at DESC 
     LIMIT 15;
+
     `;
-    // WHERE commission.usr_id NOT IN (?) AND commission.cms_status = "pass"
 
     dbConn.query(query, function (error, results) {
 
-        // console.log(results);
+        console.log(results);
 
         if (error) {
         console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
@@ -419,16 +439,34 @@ exports.artistCommission = (req, res) => {
             // ตรงนี้คุณมีรายการ myFollowings ที่เป็นรายการ ID ของผู้ที่ฉันกำลังติดตาม
             // ใช้ myFollowings ในคำสั่ง SQL ด้านล่างเพื่อค้นหาข้อมูล commission ของพวกเขา
               query = `
-                SELECT commission.cms_id, commission.cms_name, commission.cms_desc, 
-                example_img.ex_img_path, example_img.status, users.id, users.urs_name,
-                package_in_cms.pkg_id, package_in_cms.pkg_min_price
-                FROM commission
-                JOIN example_img ON commission.cms_id = example_img.cms_id
-                JOIN users ON commission.usr_id = users.id
-                JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-                WHERE commission.usr_id IN (?) AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL
-                ORDER BY commission.created_at DESC LIMIT 15
-              `;
+              SELECT 
+                  c.cms_id, c.cms_name, c.cms_desc, c.cms_status, IFNULL(c.cms_all_review, 0) AS cms_all_review,
+                  img.ex_img_path, img.status, 
+                  u.id, u.urs_name,
+                  p.pkg_id, p.pkg_min_price,
+                  COUNT(o.rw_id) AS total_reviews
+              FROM commission c
+              JOIN 
+                  example_img img ON c.cms_id = img.cms_id
+              JOIN 
+                  users u ON c.usr_id = u.id
+              JOIN 
+                  package_in_cms p ON c.cms_id = p.cms_id
+              LEFT JOIN
+                  cms_order o ON c.cms_id = o.cms_id 
+              WHERE 
+                  c.usr_id IN (?) 
+                  AND img.status = "passed" 
+                  AND c.deleted_at IS NULL 
+                  AND c.deleted_by IS NULL
+              GROUP BY
+                  c.cms_id, c.cms_name, c.cms_desc, c.cms_status, c.cms_all_review,
+                  img.ex_img_path, img.status, u.id, u.urs_name, p.pkg_id, p.pkg_min_price
+              ORDER BY 
+                  c.created_at DESC 
+              LIMIT 15;
+
+          `;
             } else {
               return res.status(200).json({ status: "ok", commissions: 'คุณไม่มีนักวาดที่ติดตาม' });
             }
@@ -438,6 +476,8 @@ exports.artistCommission = (req, res) => {
               console.log(error);
               return res.status(500).json({ status: "error", message: "Database error" });
             }
+            // console.log(results);
+
             // ตอนนี้คุณมีผลลัพธ์จากการค้นหา commission ของผู้ที่ฉันกำลังติดตาม
             const uniqueCmsIds = new Set();
             const uniqueResults = [];
@@ -902,14 +942,78 @@ exports.getCommission = (req, res) => {
   let sortBy = req.query.sortBy || 'ล่าสุด';
   let filterBy = req.query.filterBy || 'all';
   let topicValues = req.query.topicValues || 'null';
-  // console.log(topicValues);
+  let cmsStatus = req.query.cmsStatus || 'open';
+
   let query = ``;
-  if (topicValues.includes("0")) {
+
+  // ถ้าหากมี 0 แสดงว่าเป็นทั้งหมดให้ทำ if แต่ถ้าไม่ใช่ทำ else
+  if (topicValues.includes("0") && cmsStatus != "all") {
     query = `
     SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        COUNT(cms_order.rw_id) AS total_reviews,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission.cms_status = "${cmsStatus}"
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    GROUP BY 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0),
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'cms_all_review ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'cms_all_review DESC' : ''}
+
+    `;
+  } else if (topicValues.includes("0") && cmsStatus == "all") {
+    query = `
+      SELECT 
       commission.cms_id, 
       commission.cms_name, 
       commission.cms_desc, 
+      commission.cms_status,
+      IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+      COUNT(cms_order.rw_id) AS total_reviews,
       example_img.ex_img_path, 
       example_img.status,
       users.id, 
@@ -927,6 +1031,8 @@ exports.getCommission = (req, res) => {
         package_in_cms ON commission.cms_id = package_in_cms.cms_id
     JOIN
         commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
     WHERE 
         commission.deleted_at IS NULL
         AND commission.cms_id NOT IN (
@@ -934,56 +1040,147 @@ exports.getCommission = (req, res) => {
             FROM example_img
             WHERE status = 'failed'
         )
+    GROUP BY 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0),
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
     ORDER BY 
       ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
       ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
       ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
       ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
-    `;
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+    `
   } else {
-    query = `
-    SELECT 
-      commission.cms_id, 
-      commission.cms_name, 
-      commission.cms_desc, 
-      example_img.ex_img_path, 
-      example_img.status,
-      users.id, 
-      users.urs_name,
-      package_in_cms.pkg_id, 
-      package_in_cms.pkg_min_price,
-      commission_has_topic.tp_id
-    FROM 
-        commission
-    JOIN 
-        example_img ON commission.cms_id = example_img.cms_id
-    JOIN 
-        users ON commission.usr_id = users.id
-    JOIN 
-        package_in_cms ON commission.cms_id = package_in_cms.cms_id
-    JOIN
-        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
-    WHERE 
-        commission.deleted_at IS NULL
-        AND commission_has_topic.tp_id IN (${topicValues})
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
-        )
-    ORDER BY 
-      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
-      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
-      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
-      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
-    `;
+    if (cmsStatus != "all") {
+      query = `
+      SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        COUNT(cms_order.rw_id) AS total_reviews,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+      FROM 
+          commission
+      JOIN 
+          example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+          users ON commission.usr_id = users.id
+      JOIN 
+          package_in_cms ON commission.cms_id = package_in_cms.cms_id
+      JOIN
+          commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+      LEFT JOIN
+          cms_order ON commission.cms_id = cms_order.cms_id 
+      WHERE 
+          commission.deleted_at IS NULL
+          AND commission.cms_status = "${cmsStatus}"
+          AND commission_has_topic.tp_id IN (${topicValues})
+          AND commission.cms_id NOT IN (
+              SELECT cms_id
+              FROM example_img
+              WHERE status = 'failed'
+          )
+      GROUP BY 
+          commission.cms_id, 
+          commission.cms_name, 
+          commission.cms_desc, 
+          commission.cms_status,
+          IFNULL(commission.cms_all_review, 0),
+          example_img.ex_img_path, 
+          example_img.status,
+          users.id, 
+          users.urs_name,
+          package_in_cms.pkg_id, 
+          package_in_cms.pkg_min_price,
+          commission_has_topic.tp_id
+      ORDER BY 
+        ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+        ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+        ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+        ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+      `;
+    } else {
+      query = `
+      SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        COUNT(cms_order.rw_id) AS total_reviews,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+      FROM 
+          commission
+      JOIN 
+          example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+          users ON commission.usr_id = users.id
+      JOIN 
+          package_in_cms ON commission.cms_id = package_in_cms.cms_id
+      JOIN
+          commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+      LEFT JOIN
+          cms_order ON commission.cms_id = cms_order.cms_id 
+      WHERE 
+          commission.deleted_at IS NULL
+          AND commission_has_topic.tp_id IN (${topicValues})
+          AND commission.cms_id NOT IN (
+              SELECT cms_id
+              FROM example_img
+              WHERE status = 'failed'
+          )
+      GROUP BY 
+          commission.cms_id, 
+          commission.cms_name, 
+          commission.cms_desc, 
+          commission.cms_status,
+          IFNULL(commission.cms_all_review, 0),
+          example_img.ex_img_path, 
+          example_img.status,
+          users.id, 
+          users.urs_name,
+          package_in_cms.pkg_id, 
+          package_in_cms.pkg_min_price,
+          commission_has_topic.tp_id
+      ORDER BY 
+        ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+        ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+        ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+        ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+      `
+    }
   }
   dbConn.query(query, function (error, results) {
-      // console.log(results);
+      
       if (error) {
         console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
         return res.json({ status: "error", message: "status error" });
@@ -1014,15 +1211,19 @@ exports.getCommissionIfollow = (req, res) => {
   let sortBy = req.query.sortBy || 'ล่าสุด';
   let IFollowingIDs = req.query.IFollowingIDs || '';
   let topicValues = req.query.topicValues || 'null';
+  let cmsStatus = req.query.cmsStatus || 'open';
   // console.log(topicValues);
   
   let query = ``;
-  if (topicValues.includes("0")) {
+  if (topicValues.includes("0") && cmsStatus != "all") {
     query = `
     SELECT 
       commission.cms_id, 
       commission.cms_name, 
       commission.cms_desc, 
+      commission.cms_status,
+      IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+      COUNT(cms_order.rw_id) AS total_reviews,
       example_img.ex_img_path, 
       example_img.status,
       users.id, 
@@ -1040,6 +1241,66 @@ exports.getCommissionIfollow = (req, res) => {
         package_in_cms ON commission.cms_id = package_in_cms.cms_id
     JOIN
         commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
+    WHERE 
+        commission.deleted_at IS NULL
+        AND commission.usr_id IN (${IFollowingIDs})
+        AND commission.cms_status = "${cmsStatus}"
+        AND commission.cms_id NOT IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status = 'failed'
+        )
+    GROUP BY 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0),
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+    ORDER BY 
+      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+    `;
+  } else if (topicValues.includes("0") && cmsStatus == "all") {
+    query = `
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      commission.cms_status,
+      IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+      COUNT(cms_order.rw_id) AS total_reviews,
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      commission_has_topic.tp_id
+    FROM 
+        commission
+    JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+        users ON commission.usr_id = users.id
+    JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    JOIN
+        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+    LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
     WHERE 
         commission.deleted_at IS NULL
         AND commission.usr_id IN (${IFollowingIDs})
@@ -1048,54 +1309,146 @@ exports.getCommissionIfollow = (req, res) => {
             FROM example_img
             WHERE status = 'failed'
         )
+    GROUP BY 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0),
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
     ORDER BY 
       ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
       ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
       ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
       ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+      ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
     `;
   } else {
-    query = `
-    SELECT 
-      commission.cms_id, 
-      commission.cms_name, 
-      commission.cms_desc, 
-      example_img.ex_img_path, 
-      example_img.status,
-      users.id, 
-      users.urs_name,
-      package_in_cms.pkg_id, 
-      package_in_cms.pkg_min_price,
-      commission_has_topic.tp_id
-    FROM 
-        commission
-    JOIN 
-        example_img ON commission.cms_id = example_img.cms_id
-    JOIN 
-        users ON commission.usr_id = users.id
-    JOIN 
-        package_in_cms ON commission.cms_id = package_in_cms.cms_id
-    JOIN
-        commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
-    WHERE 
-        commission.deleted_at IS NULL
-        AND commission.usr_id IN (${IFollowingIDs})
-        AND commission_has_topic.tp_id IN (${topicValues})
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
-        )
-    ORDER BY 
-      ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
-      ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
-      ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
-      ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↑' ? 'rating ASC' : ''}
-      ${sortBy === 'คะแนนรีวิว ↓' ? 'rating DESC' : ''}
-    `;
+    if (cmsStatus != "all") {
+      query = `
+      SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        COUNT(cms_order.rw_id) AS total_reviews,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+      FROM 
+          commission
+      JOIN 
+          example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+          users ON commission.usr_id = users.id
+      JOIN 
+          package_in_cms ON commission.cms_id = package_in_cms.cms_id
+      JOIN
+          commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+      LEFT JOIN
+          cms_order ON commission.cms_id = cms_order.cms_id 
+      WHERE 
+          commission.deleted_at IS NULL
+          AND commission.usr_id IN (${IFollowingIDs})
+          AND commission.cms_status = "${cmsStatus}"
+          AND commission_has_topic.tp_id IN (${topicValues})
+          AND commission.cms_id NOT IN (
+              SELECT cms_id
+              FROM example_img
+              WHERE status = 'failed'
+          )
+      GROUP BY 
+          commission.cms_id, 
+          commission.cms_name, 
+          commission.cms_desc, 
+          commission.cms_status,
+          IFNULL(commission.cms_all_review, 0),
+          example_img.ex_img_path, 
+          example_img.status,
+          users.id, 
+          users.urs_name,
+          package_in_cms.pkg_id, 
+          package_in_cms.pkg_min_price,
+          commission_has_topic.tp_id
+      ORDER BY 
+        ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+        ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+        ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+        ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+      `;
+    } else {
+      query = `
+      SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        COUNT(cms_order.rw_id) AS total_reviews,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        commission_has_topic.tp_id
+      FROM 
+          commission
+      JOIN 
+          example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+          users ON commission.usr_id = users.id
+      JOIN 
+          package_in_cms ON commission.cms_id = package_in_cms.cms_id
+      JOIN
+          commission_has_topic ON commission.cms_id = commission_has_topic.cms_id
+      LEFT JOIN
+          cms_order ON commission.cms_id = cms_order.cms_id 
+      WHERE 
+          commission.deleted_at IS NULL
+          AND commission.usr_id IN (${IFollowingIDs})
+          AND commission_has_topic.tp_id IN (${topicValues})
+          AND commission.cms_id NOT IN (
+              SELECT cms_id
+              FROM example_img
+              WHERE status = 'failed'
+          )
+      GROUP BY 
+          commission.cms_id, 
+          commission.cms_name, 
+          commission.cms_desc, 
+          commission.cms_status,
+          IFNULL(commission.cms_all_review, 0),
+          example_img.ex_img_path, 
+          example_img.status,
+          users.id, 
+          users.urs_name,
+          package_in_cms.pkg_id, 
+          package_in_cms.pkg_min_price,
+          commission_has_topic.tp_id
+      ORDER BY 
+        ${sortBy === 'ล่าสุด' ? 'commission.created_at DESC' : ''}
+        ${sortBy === 'เก่าสุด' ? 'commission.created_at ASC' : ''}
+        ${sortBy === 'ราคา ↑' ? 'package_in_cms.pkg_min_price ASC' : ''}
+        ${sortBy === 'ราคา ↓' ? 'package_in_cms.pkg_min_price DESC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
+        ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
+      `;
+    }
   }
   dbConn.query(query, function (error, results) {
       // console.log(results);

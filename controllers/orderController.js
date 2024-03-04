@@ -66,11 +66,10 @@ exports.user_addOrder = async (req, res) => {
       const available_slots = results[0].available_slots;
       if (available_slots > 0) {
         const insertCmsOrder = `
-          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?, ordered_at=?
         `
-        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status], async (err, result) => {
+        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, date], async (err, result) => {
           if (err) {
-            console.log("เกิดข้อผิดพลาดที่ ERR");
             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
           }
           // ดึงข้อมูล orderId มาจากไอดีของข้อมูลที่ถูกสร้าง

@@ -10,6 +10,10 @@ const nodemailer = require("nodemailer");
 const mysql = require('mysql2')
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
 
+let date = new Date();
+let options = { timeZone: "Asia/Bangkok" };
+let bangkokTime = date.toLocaleString("th-TH", options);
+
 exports.user = async (req, res) => {
     dbConn.query('SELECT * FROM users', function( err, results ) {
         res.send(results)
@@ -53,13 +57,11 @@ exports.verify = async (req, res) => {
         }
   
         try {
-          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?", [otp]);
+          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?, created_at=?", [otp, date]);
           // const insertResult = await queryDatabase("INSERT INTO users (OTP, urs_email) VALUES (?, ?)", [otp, email]);
           const insertedUserID = insertResult ? insertResult.insertId : null;
-          console.log(insertedUserID);
           return res.json({ status: "ok", otp, insertedUserID });
         } catch (error) {
-          console.log('เข้า catch');
           console.log("error", error);
           return res.json({ status: "error", message: "Failed" });
         }
@@ -129,7 +131,7 @@ exports.register = (req, res) => {
     // const email = req.body.email;
     const image = filename_random.split("/public")[1];
     const profile = `${req.protocol}://${req.get("host")}${image}`;
-    const {userID ,email, password, username, pdpaAccept, bankAccName, ppNumber, roleName} = req.body
+    const {userID ,email, password, username, pdpaAccept, bankAccName, ppNumber, roleName} = req.body;
     let userType = null;
     if(roleName=="customer"){
       userType = 0
@@ -139,7 +141,6 @@ exports.register = (req, res) => {
     // console.log(userType);
     bcrypt.hash(password, saltRounds, function (err, hash) {
       if (err) {
-        console.log("เข้า error 1");
         return res.json({
           status: "error",
           message: "Register failed",

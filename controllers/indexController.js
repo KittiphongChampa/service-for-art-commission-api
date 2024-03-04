@@ -21,18 +21,34 @@ exports.ArtistIndex = (req, res) => {
         const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
 
         const sqlQuery = `
-            SELECT id, urs_name, urs_profile_img, created_at 
-            FROM users 
-            WHERE id IN (${followingIDs}) AND urs_type = 1 AND deleted_at IS NULL 
-            ORDER BY created_at
+        SELECT 
+            u.id,
+            u.urs_name,
+            u.urs_profile_img,
+            u.urs_all_review,
+            u.created_at,
+            COALESCE(total_reviews, 0) AS total_reviews
+        FROM users u
+        LEFT JOIN (
+            SELECT artist_id,
+                COUNT(rw_id) AS total_reviews
+            FROM cms_order
+            WHERE artist_id IN (${followingIDs}) AND rw_id IS NOT NULL
+            GROUP BY artist_id
+        ) AS order_counts ON u.id = order_counts.artist_id
+        WHERE u.id IN (${followingIDs}) AND u.urs_type = 1 AND u.deleted_at IS NULL 
+        ORDER BY u.created_at
+        
         `;
+        
         dbConn.query(sqlQuery, (error, results) => {
             if (error) {
               console.log(error);
               return res.status(500).json({ message: 'Internal Server Error' });
             }
-            // console.log(results);
-            return res.status(200).json({ results, message: 'Success' });
+            console.log(results);
+           return res.status(200).json({ results, message: 'Success' });
+            
         });
     }
 }
@@ -43,10 +59,23 @@ exports.allArtist = (req, res) => {
     // console.log(sortBy);
     // console.log(filterBy);
     const sqlQuery = `
-        SELECT id, urs_name, urs_profile_img, created_at 
-        FROM users 
-        WHERE urs_type = 1 AND deleted_at IS NULL 
-        ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+        SELECT 
+            u.id,
+            u.urs_name,
+            u.urs_profile_img,
+            u.urs_all_review,
+            u.created_at,
+            COALESCE(total_reviews, 0) AS total_reviews
+        FROM users u
+        LEFT JOIN (
+            SELECT artist_id,
+                COUNT(rw_id) AS total_reviews
+            FROM cms_order
+            WHERE rw_id IS NOT NULL
+            GROUP BY artist_id
+        ) AS order_counts ON u.id = order_counts.artist_id
+        WHERE u.urs_type = 1 AND u.deleted_at IS NULL 
+        ORDER BY u.created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
     `;
 
     dbConn.query(sqlQuery, [sortBy], (error, results) => {
@@ -72,10 +101,23 @@ exports.ArtistIFollow = (req, res) => {
         return res.status(200).json({ message: 'ไม่มีนักวาดที่ติดตาม' });
     } else {
         const sqlQuery = `
-            SELECT id, urs_name, urs_profile_img, created_at 
-            FROM users 
-            WHERE id IN (${IFollowingIDs}) AND urs_type = 1 AND deleted_at IS NULL 
-            ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+            SELECT
+                u.id,
+                u.urs_name,
+                u.urs_profile_img,
+                u.urs_all_review,
+                u.created_at,
+                COALESCE(total_reviews, 0) AS total_reviews 
+            FROM users u
+            LEFT JOIN (
+                SELECT artist_id,
+                    COUNT(rw_id) AS total_reviews
+                FROM cms_order
+                WHERE artist_id IN (${IFollowingIDs}) AND rw_id IS NOT NULL
+                GROUP BY artist_id
+            ) AS order_counts ON u.id = order_counts.artist_id
+            WHERE id IN (${IFollowingIDs}) AND u.urs_type = 1 AND u.deleted_at IS NULL 
+            ORDER BY u.created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
         `;
         dbConn.query(sqlQuery, (error, results) => {
             if (error) {
@@ -116,8 +158,15 @@ exports.search = (req, res) => {
     const search_query = req.query.search;
     const query = `
         SELECT 
-            users.id, users.urs_email, users.urs_name, users.urs_profile_img
+            users.id, users.urs_email, users.urs_name, users.urs_profile_img, users.urs_all_review, COALESCE(total_reviews, 0) AS total_reviews
         FROM users
+        LEFT JOIN (
+            SELECT artist_id,
+                COUNT(rw_id) AS total_reviews
+            FROM cms_order
+            WHERE rw_id IS NOT NULL
+            GROUP BY artist_id
+        ) AS order_counts ON users.id = order_counts.artist_id
         WHERE 
             users.urs_name LIKE ? OR users.urs_email LIKE ? AND users.deleted_at IS NULL
     `
@@ -125,22 +174,29 @@ exports.search = (req, res) => {
         if (error) {
             return res.status(500).json({ message: 'Internal Server Error' });
         }
-        // console.log("users : ", users);
         const cms_query = `
         SELECT 
             commission.cms_id, 
             commission.cms_name, 
             commission.cms_desc, 
+            IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+            commission.cms_status,
             example_img.ex_img_path, 
             example_img.status,
             package_in_cms.pkg_id, 
-            package_in_cms.pkg_min_price
+            package_in_cms.pkg_min_price,
+            COUNT(cms_order.rw_id) AS total_reviews
         FROM 
             commission
         JOIN 
             example_img ON commission.cms_id = example_img.cms_id
         JOIN 
             package_in_cms ON commission.cms_id = package_in_cms.cms_id
+        JOIN 
+            users ON commission.usr_id = users.id
+        LEFT JOIN
+            cms_order ON commission.cms_id = cms_order.cms_id 
+        
         WHERE 
             commission.cms_name LIKE ? OR commission.cms_desc LIKE ? AND
             commission.deleted_at IS NULL 
@@ -149,6 +205,18 @@ exports.search = (req, res) => {
                 FROM example_img
                 WHERE status = 'failed'
             )
+        GROUP BY 
+            commission.cms_id, 
+            commission.cms_name, 
+            commission.cms_desc, 
+            commission.cms_all_review,
+            commission.cms_status,
+            example_img.ex_img_path, 
+            example_img.status,
+            users.id, 
+            users.urs_name,
+            package_in_cms.pkg_id, 
+            package_in_cms.pkg_min_price
         ORDER BY commission.created_at DESC 
         `
         dbConn.query(cms_query, [`%${search_query}%`, `%${search_query}%`], function(error, cms) {

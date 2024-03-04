@@ -315,8 +315,8 @@ exports.addfaq = (req, res) => {
     const adminId = req.user.adminId;
     try {
       dbConn.query(
-        "INSERT INTO faq (faq_heading, faq_desc, admin_id) VALUES (?, ?, ?)",
-        [question, answer, adminId],
+        "INSERT INTO faq (faq_heading, faq_desc, admin_id, created_at) VALUES (?, ?, ?, ?)",
+        [question, answer, adminId, date],
         function (error, results) {
           if (results) {
             return res.json({
