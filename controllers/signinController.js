@@ -23,7 +23,6 @@ exports.user = async (req, res) => {
 exports.verify = async (req, res) => {
     const email = req.body.email;
     const otp = crypto.randomInt(100000, 999999).toString();
-    console.log(req.body);
     try {
       const userResult = await queryDatabase("SELECT urs_email FROM users WHERE urs_email = ?", [email]);
       if (userResult.length >= 1) {
@@ -148,7 +147,7 @@ exports.register = (req, res) => {
       } else {
         let coverColor = '#BDC5F5'
         dbConn.query(
-          "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=? urs_cover_color=? WHERE id=?",
+          "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=?, urs_cover_color=? WHERE id=?",
           [email, hash, username, profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
           function (error, results) {
             if (error) {

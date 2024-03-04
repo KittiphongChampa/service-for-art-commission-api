@@ -251,7 +251,7 @@ exports.getSumProfit = (req, res) => {
   const userID = req.user.userId;
   const sql = `
     SELECT 
-      SUM(od_price + od_edit_amount_price) AS profit 
+      COALESCE(SUM(od_price + od_edit_amount_price), 0) AS profit
     FROM 
       cms_order
     WHERE artist_id = ? 

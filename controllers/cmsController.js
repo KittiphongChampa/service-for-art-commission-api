@@ -509,14 +509,21 @@ exports.artistCommission = (req, res) => {
 };
 
 exports.detailCommission = (req, res) => {
+  // const getQueueSQL = `
+  //   SELECT c.cms_id, c.cms_amount_q, COUNT(o.od_id) AS used_slots
+  //   FROM commission c
+  //   LEFT JOIN cms_order o ON c.cms_id = o.cms_id
+  //   WHERE c.cms_id = ? AND o.od_status = ?
+  //   GROUP BY c.cms_id, c.cms_amount_q
+  // `
     const cmsID = req.params.id;
     try {
       const query = `
         SELECT 
-          commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_by, commission.delete_reason,
+          commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_by, commission.delete_reason, commission.cms_status,
           example_img.ex_img_id , example_img.ex_img_path, example_img.status,
           package_in_cms.pkg_id, package_in_cms.pkg_name ,package_in_cms.pkg_desc ,package_in_cms.pkg_min_price ,package_in_cms.pkg_duration ,package_in_cms.pkg_edits,
-          users.id, users.urs_name, users.urs_profile_img,
+          users.id, users.urs_name, users.urs_profile_img, IFNULL(users.urs_all_review, 0) as all_review, COALESCE(total_reviews, 0) AS total_reviews,
           commission_has_type_of_use.cms_id, commission_has_type_of_use.tou_id,
           type_of_use.tou_id, type_of_use.tou_name, type_of_use.tou_desc
         FROM 
@@ -531,8 +538,19 @@ exports.detailCommission = (req, res) => {
           commission_has_type_of_use ON commission.cms_id = commission_has_type_of_use.cms_id
         JOIN 
           type_of_use ON type_of_use.tou_id = commission_has_type_of_use.tou_id
+        LEFT JOIN (
+          SELECT artist_id,
+              COUNT(rw_id) AS total_reviews
+          FROM cms_order
+          WHERE rw_id IS NOT NULL
+          GROUP BY artist_id
+        ) AS order_counts ON users.id = order_counts.artist_id
         WHERE 
-          commission.cms_id = ? AND example_img.status = "passed" AND commission.deleted_at IS NULL AND commission.deleted_by IS NULL AND package_in_cms.deleted_at IS NULL
+          commission.cms_id = ? 
+          AND example_img.status = "passed" 
+          AND commission.deleted_at IS NULL 
+          AND commission.deleted_by IS NULL 
+          AND package_in_cms.deleted_at IS NULL
       `;
       
       dbConn.query(query, [cmsID], function (error, results) {
@@ -564,11 +582,15 @@ exports.detailCommission = (req, res) => {
             created_at: commissionData.created_at,
             updated_at: commissionData.updated_at,
             deleted_at: commissionData.deleted_at,
+            cms_status: commissionData.cms_status,
+            used_slots: commissionData.used_slots
           },
           artist: {
             artistId: commissionData.usr_id,
             artistName: commissionData.urs_name,
-            artistProfile: commissionData.urs_profile_img
+            artistProfile: commissionData.urs_profile_img,
+            all_review: commissionData.all_review,
+            total_reviews : commissionData.total_reviews
           },
         };
   

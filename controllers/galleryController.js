@@ -598,32 +598,10 @@ exports.galloryIfollow = (req, res) => {
 exports.galloryAll = (req, res) => {
     let sortBy = req.query.sortBy || 'ล่าสุด';
     let filterBy = req.query.filterBy || 'all';
-    let topic = req.query.topic;
-    console.log(topic);
+    // let topic = req.query.topic;
+    let topicValues = req.query.topicValues || 'null';
     let sqlQuery = ``;
-    if (topic == 'เลือกทั้งหมด') {
-        // sqlQuery = `
-        //     SELECT 
-        //         artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
-        //         example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
-        //     FROM 
-        //         artwork
-        //     JOIN 
-        //         example_img ON artwork.ex_img_id = example_img.ex_img_id
-        //     WHERE 
-        //         artwork.deleted_at IS NULL 
-        //     UNION
-        //     SELECT
-        //         example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
-        //         example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
-        //     FROM
-        //         example_img
-        //     JOIN
-        //         artwork ON example_img.artw2_id = artwork.artw_id
-        //     WHERE
-        //         example_img.cms_id IS NULL AND artwork.deleted_at IS NULL
-        //     ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
-        // `
+    if (topicValues.includes("0")) {
         sqlQuery = `
         SELECT * FROM (
             SELECT 
@@ -650,7 +628,6 @@ exports.galloryAll = (req, res) => {
         `
     ;
     } else {
-
         sqlQuery = `
             SELECT * FROM (
                 SELECT 
@@ -664,7 +641,7 @@ exports.galloryAll = (req, res) => {
                 JOIN 
                     artwork_has_topic ON artwork.artw_id = artwork_has_topic.artw2_id
                 WHERE 
-                    artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ?
+                    artwork.deleted_at IS NULL AND artwork_has_topic.tp_id IN (${topicValues})
                 UNION
                 SELECT
                     example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
@@ -677,7 +654,7 @@ exports.galloryAll = (req, res) => {
                 JOIN
                     artwork_has_topic ON example_img.artw2_id = artwork_has_topic.artw_id
                 WHERE
-                    example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND artwork_has_topic.tp_id = ?
+                    example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND artwork_has_topic.tp_id IN (${topicValues})
             ) results
             ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
         `;
@@ -694,7 +671,7 @@ exports.galloryAll = (req, res) => {
         //     ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
         // `
     }
-    dbConn.query(sqlQuery, [topic, topic],(error, results) => {
+    dbConn.query(sqlQuery,(error, results) => {
         if (error) {
           console.log(error);
           return res.status(500).json({ message: 'galloryAll Error', error: error.message });
