@@ -483,9 +483,9 @@ exports.addMessages = (req, res, next) => {
           function (error, result) {
             // console.log(result.affectedRows);
             if (result.affectedRows > 0) {
-              return res.json({ msg: "Message added successfully." });
+              return res.json({ status : "ok",msg: "Message added successfully." });
             } else {
-              return res.json({ msg: "Failed to add message to the database." });
+              return res.json({ status: "error", msg: "Failed to add message to the database." });
             }
           }
         )

@@ -61,6 +61,7 @@ router.post("/messages/addmsg", chatController.addMessages);
 router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
 router.patch("/commission/update/:id", auth.verifyToken, cmsController.updateCommission);
 router.patch("/commission/delete/:id", cmsController.deleteCommission);
+router.patch("/changestatus/:id", cmsController.manageStatusCms);
 
 
 //indexCommissionController

@@ -9,6 +9,7 @@ const nodemailer = require("nodemailer");
 
 const mysql = require('mysql2')
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
+const date = new Date()
 
 exports.user = async (req, res) => {
     dbConn.query('SELECT * FROM users', function( err, results ) {
@@ -53,7 +54,7 @@ exports.verify = async (req, res) => {
         }
   
         try {
-          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?", [otp]);
+          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?,created_at=?", [otp,date]);
           // const insertResult = await queryDatabase("INSERT INTO users (OTP, urs_email) VALUES (?, ?)", [otp, email]);
           const insertedUserID = insertResult ? insertResult.insertId : null;
           console.log(insertedUserID);
@@ -147,7 +148,7 @@ exports.register = (req, res) => {
       } else {
         let coverColor = '#BDC5F5'
         dbConn.query(
-          "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=? urs_cover_color=? WHERE id=?",
+          "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=?, urs_cover_color=? WHERE id=?",
           [email, hash, username, profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
           function (error, results) {
             if (error) {
