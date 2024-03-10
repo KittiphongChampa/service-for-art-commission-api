@@ -66,41 +66,6 @@ exports.index = (req, res) => {
 
 exports.allchat = (req, res) => {
   const myId = req.user.userId;
-
-  // ตอนนี้ใช้อันนี้
-    const sql1 = `
-      SELECT 
-      cms_order.artist_id,
-      users.id,
-      users.urs_name,
-      users.urs_profile_img,
-      messages.sender,
-      messages.receiver, `
-      +
-      `
-      (
-          SELECT od_current_step_id
-          FROM cms_order 
-          WHERE messages.od_id = cms_order.od_id
-      ) AS current_step,
-      (
-          SELECT step_name 
-          FROM cms_steps 
-          WHERE current_step = cms_steps.step_id
-      ) AS current_step_name,`
-      + 
-      `
-      MAX(messages.created_at) AS last_message_time,
-      IFNULL(messages.od_id, 0) AS od_id
-      FROM users
-      JOIN messages ON (users.id = messages.receiver OR users.id = messages.sender)
-      LEFT JOIN cms_steps ON cms_steps.step_id = messages.step_id
-      LEFT JOIN cms_order ON (users.id = cms_order.customer_id OR users.id = cms_order.artist_id) AND cms_order.od_id = messages.od_id
-      WHERE (messages.receiver = ? OR messages.sender = ?) AND users.id != ?
-      GROUP BY users.id, messages.sender, messages.receiver, messages.od_id
-      ORDER BY last_message_time DESC
-    `
-
   const sql4 = `
   SELECT 
     sub_query.id,
@@ -142,6 +107,9 @@ exports.allchat = (req, res) => {
   SELECT 
     sub_query.artist_id,
     sub_query.od_id,
+    sub_query.od_q_number,
+    sub_query.od_cancel_by,
+    sub_query.finished_at,
     sub_query.id,
     sub_query.urs_name,
     sub_query.urs_profile_img,
@@ -155,6 +123,9 @@ exports.allchat = (req, res) => {
     SELECT 
       cms_order.artist_id,
       IFNULL(messages.od_id, 0) AS od_id,
+      od_q_number,
+      od_cancel_by,
+      finished_at,
       users.id, 
       users.urs_name, 
       users.urs_profile_img,
@@ -190,7 +161,9 @@ exports.allchat = (req, res) => {
         users.id, 
         messages.sender, 
         messages.receiver, 
-        messages.od_id
+        messages.od_id,
+        messages.message_text
+
   ) AS sub_query
   ORDER BY sub_query.last_message_time DESC;
   `
@@ -209,6 +182,7 @@ exports.allchat = (req, res) => {
             console.log(error);
             return res.json({ status: "error", message: "status error" });
           } 
+          console.log(contacts_order);
           return res.json({contacts, contacts_order });
         }
       );
@@ -329,8 +303,8 @@ exports.addMessages = (req, res, next) => {
         )
       } else {
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id,created_at) VALUES (?, ?, ?, ?,?)",
-          [from, to, message, order_id,date],
+          "INSERT INTO messages (sender, receiver, message_text,od_id) VALUES (?, ?, ?, ?)",
+          [from, to, message, order_id],
           function (error, result) {
             // console.log(result.affectedRows);
             if (result.affectedRows > 0) {

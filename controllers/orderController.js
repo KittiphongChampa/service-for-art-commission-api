@@ -296,7 +296,7 @@ exports.test = (req, res) => {
 //!------------------------------------------------------------
 
 exports.updateStep = (req, res) => {
-  console.log('ทำงาน req.body : ', req.body);
+  // console.log('ทำงาน req.body : ', req.body);
   const { step_id, od_id, od_price, od_edit, deleted, paid, first_pay_paid } = req.body;
   try {
 
