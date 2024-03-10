@@ -26,7 +26,21 @@ exports.profile = (req, res) => {
     let MyFollowerIds = [];
     let IFollowingsIds = [];
     dbConn.query(
-      "SELECT * FROM users WHERE id=?",
+      `SELECT * ,
+      (SELECT COUNT(*)
+        FROM review
+        JOIN cms_order ON review.od_id = cms_order.od_id
+        WHERE users.id = cms_order.artist_id
+      ) AS rw_number,
+      (SELECT COUNT(*)
+        FROM cms_order
+        WHERE users.id = cms_order.artist_id AND finished_at IS NOT NULL
+      ) AS success,
+      (SELECT COUNT(*)
+        FROM cms_order
+        WHERE users.id = cms_order.artist_id AND od_cancel_by IS NOT NULL
+      ) AS cancel
+      FROM users WHERE id=?`,
       [myId],
       // [test],
       function (error, users) {

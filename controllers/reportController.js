@@ -167,7 +167,7 @@ exports.reportDetail = async(req, res) => {
                         artistName: artworkData.urs_name,
                         artistProfile: artworkData.urs_profile_img
                     },
-                }
+                } 
 
                 const uniqueImages= [];
                 const uniqueImagesIds = new Set();

@@ -223,10 +223,11 @@ exports.getMessages = (req, res, next) => {
     if (od_id == 0 || od_id == null || od_id == undefined) {
       // console.log('ออเดอร์ไอดีนี้เป็น 0 = แชทส่วนตัว')
       dbConn.query(
-        `SELECT sender, receiver, message_text, created_at 
+        `SELECT sender, receiver, message_text, created_at
       FROM messages
       WHERE sender IN (?, ?) AND receiver IN (?, ?) AND (od_id IS NULL )` ,
         [from, to, from, to],
+        //โคลนอีกตารางมาแล้วเลือกว่าMIN ของวันที่นั้นๆมา
         function (error, results) {
           const projectedMessages = results.map((row) => {
             return {
@@ -319,17 +320,17 @@ exports.addMessages = (req, res, next) => {
           [from, to, message, order_id, step_id, checked, status],
           function (error, result) {
             if (result.affectedRows > 0) {
-              return res.json({ msg: "Message added successfully." });
+              return res.json({ status: "ok", msg: "Message added successfully." });
             } else {
               console.log(error);
-              return res.json({ msg: "Failed to add message to the database." });
+              return res.json({ status: "error", msg: "Failed to add message to the database." });
             }
           }
         )
       } else {
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id) VALUES (?, ?, ?, ?)",
-          [from, to, message, order_id],
+          "INSERT INTO messages (sender, receiver, message_text,od_id,created_at) VALUES (?, ?, ?, ?,?)",
+          [from, to, message, order_id,date],
           function (error, result) {
             // console.log(result.affectedRows);
             if (result.affectedRows > 0) {
@@ -372,7 +373,7 @@ exports.addMessages = (req, res, next) => {
         function (error, result) {
           // console.log(result.affectedRows);
           if (result.affectedRows > 0) {
-            return res.json({ image_chat, msg: "Message added successfully." });
+            return res.json({ status: "ok",image_chat, msg: "Message added successfully." });
           } else {
             return res.json({ msg: "Failed to add message to the database." });
           }

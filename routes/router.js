@@ -184,6 +184,11 @@ router.get("/getreq", auth.verifyToken, orderController.getMyReq);
 router.get("/getcmsreq", auth.verifyToken, orderController.getCmsReq);
 router.get("/getalltou/:od_id", orderController.getAllTou);
 router.post("/changeorder", orderController.changeOrder);
+router.post("/finishorder", orderController.finishOrder);
+router.post("/cancelorder", orderController.cancelOrder);
+router.post("/setdeadline", orderController.setDeadline);
+router.post("/cancelslip", orderController.cancelSlip);
+
 
 
 // router.post("/test/:id", orderController.test);
