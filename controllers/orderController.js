@@ -62,32 +62,48 @@ exports.user_addOrder = async (req, res) => {
         console.log('เกิดข้อผิดพลาด');
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
       }
+      //select เลือก max(คิว)+1
 
       const available_slots = results[0].available_slots;
       if (available_slots > 0) {
-        const insertCmsOrder = `
-          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?
+        dbConn.query(
+          `SELECT MAX(od_q_number) AS q
+          FROM cms_order
+          WHERE artist_id = ?
+          `, [artistId], async (error, maxQRes) => {
+          let now_q;
+          if (maxQRes[0].q == null || maxQRes[0].q == undefined) {
+            now_q = 1
+          } else {
+            now_q = maxQRes[0].q + 1
+          }
+          const insertCmsOrder = `
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=? ,od_q_number=?
         `
-        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status], async (err, result) => {
-          if (err) {
-            console.log("เกิดข้อผิดพลาดที่ ERR");
-            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
-          }
-          // ดึงข้อมูล orderId มาจากไอดีของข้อมูลที่ถูกสร้าง
-          const orderId = result.insertId;
-          try {
-            await insertCmsSteps(orderId);
-            return res.status(200).json({
-              status: 'ok',
-              message: "คำขอจ้างถูกส่งเรียบร้อย",
-              orderId
-            });
-          } catch (error) {
-            console.error('Error:', error);
-            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-          }
+          dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, now_q], async (err, result) => {
+            if (err) {
+              console.log("เกิดข้อผิดพลาดที่ ERR");
+              return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
+            }
+            // ดึงข้อมูล orderId มาจากไอดีของข้อมูลที่ถูกสร้าง
+            const orderId = result.insertId;
+            try {
+              await insertCmsSteps(orderId);
+              return res.status(200).json({
+                status: 'ok',
+                message: "คำขอจ้างถูกส่งเรียบร้อย",
+                orderId
+              });
+            } catch (error) {
+              console.error('Error:', error);
+              return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+            }
 
-        })
+          })
+
+        }
+        )
+
       } else {
         return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
       }
@@ -310,7 +326,7 @@ exports.updateStep = (req, res) => {
       if (first_pay_paid == null && paid !== undefined) {
         //ถ้ายังไม่จ่ายครั้งแรก
         dbConn.query(
-          "UPDATE cms_order SET od_first_pay = ? WHERE od_id = ?", [paid, od_id])
+          "UPDATE cms_order SET od_first_pay = ?, od_deadline=? WHERE od_id = ?", [paid, date, od_id])
       } else {
         dbConn.query(
           "UPDATE cms_order SET od_final_pay = ? WHERE od_id = ?", [paid, od_id])
@@ -401,7 +417,7 @@ exports.getAllOrderDetail = (req, res) => {
   const { artist_id } = req.body;
   try {
     dbConn.query(
-      `SELECT od_number_of_edit,ordered_at,cms_name,od_id,pkg_edits,pkg_duration,pkg_name,od_q_number,customer_id,od_price,od_number_of_edit,od_edit_amount_price,
+      `SELECT od_number_of_edit,ordered_at,cms_name,od_id,pkg_edits,pkg_duration,pkg_name,od_q_number,customer_id,od_price,od_number_of_edit,
       (SELECT MAX(messages.step_id)
     FROM messages
     JOIN cms_steps ON cms_steps.step_id = messages.step_id
@@ -672,7 +688,7 @@ exports.getPayment = (req, res) => {
   const orderId = req.params.id;
   const sql = `
   SELECT cms_order.od_first_pay, cms_order.od_final_pay, cms_order.od_price, users.urs_account_name, users.urs_promptpay_number,
-  cms_order.od_price + od_edit_amount_price AS allprice
+  cms_order.od_price AS allprice
   FROM cms_order 
   JOIN users ON cms_order.artist_id = users.id
   WHERE od_id = ?
@@ -782,11 +798,11 @@ exports.getMyReq = (req, res) => {
   const userID = req.user.userId;
   try {
     dbConn.query(
-      `SELECT od_id,od_price , cms_name,od_cancel_by , pkg_name , ordered_at, (SELECT urs_name FROM users WHERE id = cms_order.artist_id) AS artist_name,
+      `SELECT od_id,od_price , cms_name,od_cancel_by , pkg_name,cms_order.pkg_id , ordered_at, (SELECT urs_name FROM users WHERE id = cms_order.artist_id) AS artist_name,
       (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
       FROM cms_order
       JOIN commission ON commission.cms_id = cms_order.cms_id
-      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id
+      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id AND cms_order.pkg_id = package_in_cms.pkg_id
       WHERE cms_order.customer_id = ?
       ORDER BY ordered_at` ,
       [userID],
@@ -808,15 +824,20 @@ exports.getCmsReq = (req, res) => {
   const userID = req.user.userId;
   try {
     dbConn.query(
-      `SELECT od_q_number,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_edit_amount_price,od_price,ordered_at,
+      `SELECT od_q_number,finished_at,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_price,ordered_at,finished_at,od_cancel_by,
       (SELECT pkg_duration FROM package_in_cms WHERE cms_order.pkg_id = package_in_cms.pkg_id ) AS pkg_duration ,
       (SELECT urs_name FROM users WHERE id = cms_order.customer_id) AS customer_name,
       (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
       FROM cms_order
       JOIN commission ON commission.cms_id = cms_order.cms_id
-      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id
+      JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id AND commission.cms_id AND cms_order.pkg_id = package_in_cms.pkg_id
       WHERE cms_order.artist_id = ?
-      ORDER BY ordered_at` ,
+      ORDER BY
+      CASE
+        WHEN od_q_number IS NULL
+        THEN 'Infinity'
+        ELSE od_q_number
+        END ASC, ordered_at DESC` ,
       [userID],
       function (error, results) {
         res.json(results);
@@ -834,12 +855,13 @@ exports.getAllTou = (req, res) => {
   try {
     dbConn.query(
       `SELECT *,
-      (SELECT tou_id FROM cms_order WHERE od_id = ?) AS old_tou,
-      (SELECT tou_name FROM cms_order WHERE od_id = ?) AS old_tou_name
-      FROM type_of_use` ,
+      (SELECT od_tou FROM cms_order WHERE od_id = ?) AS old_tou,
+      (SELECT t.tou_name FROM type_of_use t WHERE t.tou_id = old_tou) AS old_tou_name
+      FROM type_of_use`,
       [od_id, od_id],
       function (error, results) {
         res.json(results);
+        console.log(results)
       }
     );
   } catch (error) {
@@ -847,6 +869,31 @@ exports.getAllTou = (req, res) => {
   }
 
 }
+
+exports.setDeadline = (req, res) => {
+  const { od_id, pkg_duration } = req.body;
+  // const deadline = new Date(startDate.setDate(startDate.getDate() + pkg_duration));
+
+  const deadline = new Date();
+  const sumDay = deadline.getDate() + pkg_duration; io
+  deadline.setDate(sumDay)
+  console.log(deadline);
+
+  try {
+    dbConn.query(
+      `UPDATE cms_order,
+      SET od_deadline = ?
+      WHERE od_id = ?` ,
+      [deadline, od_id]
+    );
+
+  } catch (error) {
+
+  }
+
+
+}
+
 
 
 exports.changeOrder = (req, res) => {
@@ -879,21 +926,157 @@ exports.changeOrder = (req, res) => {
 
 
 exports.cancelOrder = (req, res) => {
-  const { od_id } = req.body;
+  const od_id = req.body.od_id;
   console.log(req.body)
   try {
     dbConn.query(
       `UPDATE cms_order
-      SET od_cancel_by = ?
+      SET od_cancel_by = ?,od_q_number = NULL
       WHERE od_id = ?` ,
-      [date, od_id]
-    ), function (error, res) {
+      [date, od_id], function (error) {
+        dbConn.query(
+          //โค้ดเลื่อนคิว
+          `
+          UPDATE cms_order AS c1
+          JOIN (
+            SELECT od_id,
+            ROW_NUMBER() OVER (ORDER BY ordered_at) AS new_q
+            FROM cms_order WHERE finished_at IS NULL AND od_cancel_by IS NULL
+        ) AS c2 ON c1.od_id = c2.od_id
+          SET od_q_number = new_q
+          WHERE finished_at IS NULL AND od_cancel_by IS NULL
+          `,
+          function (error, result) {
+            if (error) {
+              res.status(500).json({
+                status: "error",
+                message: "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง",
+              });
+            } else {
+              console.log(result);
+              res.status(200).json({
+                status: "success",
+                message: "อัปเดตสถานะเรียบร้อย",
+              });
+            }
+          }
+        );
 
 
-    }
+      }
+    )
     //ให้ทำการขยับคิวต่อ
   } catch (error) {
     console.log(error)
   }
 }
 
+exports.finishOrder = (req, res) => {
+  const od_id = req.body.od_id;
+  try {
+    dbConn.query(
+      `UPDATE cms_order
+      SET finished_at = ?, od_q_number = NULL
+      WHERE od_id = ?` ,
+      [date, od_id], function (error, result) {
+        if (error) {
+          console.log(error)
+        }
+
+        dbConn.query(
+          //โค้ดเลื่อนคิว
+          `
+          UPDATE cms_order AS c1
+          JOIN (
+            SELECT od_id,
+            ROW_NUMBER() OVER (ORDER BY ordered_at) AS new_q
+            FROM cms_order WHERE finished_at IS NULL AND od_cancel_by IS NULL
+        ) AS c2 ON c1.od_id = c2.od_id
+          SET od_q_number = new_q
+          WHERE finished_at IS NULL AND od_cancel_by IS NULL
+          `,
+          function (error, result) {
+            if (error) {
+              res.status(500).json({
+                status: "error",
+                message: "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง",
+              });
+            } else {
+              console.log(result);
+              res.status(200).json({
+                status: "success",
+                message: "อัปเดตสถานะเรียบร้อย",
+              });
+            }
+          }
+        );
+
+      }
+    )
+
+  } catch (error) {
+    console.log(error)
+  }
+
+
+}
+
+
+exports.cancelSlip = (req, res) => {
+  const { od_id } = req.body;
+  dbConn.query(
+    //เลือกสเตปแนบสลิปมา
+    `SELECT MAX(step_id) AS step_id
+        FROM cms_steps
+        WHERE checked_at IS NOT NULL AND od_id = ?
+        `, [od_id], function (error, now_stepRes) {
+    if (error) {
+
+    } else {
+      dbConn.query(
+        //ให้สเตปแนบสลิปเป็น null
+        `UPDATE cms_steps
+            SET checked_at = NULL
+            WHERE step_id = ?`
+        , [now_stepRes[0].step_id], function (error, ssss) {
+          dbConn.query(
+            //เลือกสเตป
+            `SELECT MIN(step_id) AS id
+            FROM cms_steps
+            WHERE od_id = ? AND checked_at IS NULL` ,
+            [od_id],
+            function (error, curStep) {
+              console.log("--------------")
+              dbConn.query(
+                `UPDATE cms_order
+                SET od_current_step_id = ?
+                WHERE od_id = ?` ,
+                [curStep[0].id, od_id],
+                function (error) {
+                  dbConn.query(
+                    `SELECT step_id, od_id ,
+                    checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
+                    FROM cms_steps
+                    WHERE od_id = ? AND checked_at IS NULL` ,
+                    [od_id, od_id],
+                    function (error, results) {
+                      if (error) {
+                        console.log(error);
+                      }
+                      res.json(results[0]);
+                      console.log(results[0])
+                    }
+                  );
+
+                }
+              )
+            }
+          )
+
+        }
+      )
+    }
+  }
+  )
+
+}

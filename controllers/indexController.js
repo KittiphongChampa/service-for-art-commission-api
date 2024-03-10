@@ -15,7 +15,7 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.ArtistIndex = (req, res) => {
     const { iFollowing } = req.body;
-    if (iFollowing=="") {
+    if (iFollowing == "") {
         return res.status(200).json({ results: 'คุณไม่มีนักวาดที่ติดตาม' });
     } else {
         const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
@@ -28,8 +28,8 @@ exports.ArtistIndex = (req, res) => {
         `;
         dbConn.query(sqlQuery, (error, results) => {
             if (error) {
-              console.log(error);
-              return res.status(500).json({ message: 'Internal Server Error' });
+                console.log(error);
+                return res.status(500).json({ message: 'Internal Server Error' });
             }
             // console.log(results);
             return res.status(200).json({ results, message: 'Success' });
@@ -43,7 +43,16 @@ exports.allArtist = (req, res) => {
     // console.log(sortBy);
     // console.log(filterBy);
     const sqlQuery = `
-        SELECT id, urs_name, urs_profile_img, created_at 
+        SELECT id, urs_name, urs_profile_img, created_at , urs_all_review,
+        (SELECT COUNT(*)
+        FROM review
+        JOIN cms_order ON review.od_id = cms_order.od_id
+        WHERE users.id = cms_order.artist_id
+      ) AS rw_number,
+      (SELECT COUNT(*)
+        FROM cms_order
+        WHERE users.id = cms_order.artist_id AND finished_at IS NOT NULL
+      ) AS success
         FROM users 
         WHERE urs_type = 1 AND deleted_at IS NULL 
         ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
@@ -51,8 +60,8 @@ exports.allArtist = (req, res) => {
 
     dbConn.query(sqlQuery, [sortBy], (error, results) => {
         if (error) {
-          console.log('allArtist : ', error);
-          return res.status(500).json({ message: 'Internal Server Error' });
+            console.log('allArtist : ', error);
+            return res.status(500).json({ message: 'Internal Server Error' });
         }
         return res.status(200).json({ results, message: 'Success' });
     });
@@ -67,7 +76,7 @@ exports.ArtistIFollow = (req, res) => {
     // const followingIDs = IFollowingIDs.split(',').map(id => parseInt(id.trim(), 10));
     // console.log(followingIDs);
 
-    if (IFollowingIDs==''){
+    if (IFollowingIDs == '') {
         console.log('ไม่มีนักวาดที่ติดตามในหน้า artist');
         return res.status(200).json({ message: 'ไม่มีนักวาดที่ติดตาม' });
     } else {
@@ -83,16 +92,16 @@ exports.ArtistIFollow = (req, res) => {
                 return res.status(500).json({ message: 'Internal Server Error' });
             }
             // console.log(results);
-            return res.status(200).json({ status:"ok", results, message: 'Success' });
+            return res.status(200).json({ status: "ok", results, message: 'Success' });
         });
     }
 
-    
+
 }
 
 exports.getTopic = (req, res) => {
     dbConn.query(
-        `SELECT tp_id, tp_name FROM topic`, function(error, results) {
+        `SELECT tp_id, tp_name FROM topic`, function (error, results) {
             if (error) {
                 return res.status(500).json({ message: 'Internal Server Error' });
             }
@@ -104,11 +113,11 @@ exports.getTopic = (req, res) => {
 exports.getFaq = (req, res) => {
     dbConn.query(`
         SELECT * FROM faq WHERE deleted_at IS NULL
-    `, function(error, results) {
+    `, function (error, results) {
         if (error) {
             return res.status(500).json({ message: 'Internal Server Error' });
         }
-        return res.status(200).json({status: "ok", results})
+        return res.status(200).json({ status: "ok", results })
     })
 }
 
@@ -121,7 +130,7 @@ exports.search = (req, res) => {
         WHERE 
             users.urs_name LIKE ? OR users.urs_email LIKE ? AND users.deleted_at IS NULL
     `
-    dbConn.query(query, [`%${search_query}%`, `%${search_query}%`], function(error, users){
+    dbConn.query(query, [`%${search_query}%`, `%${search_query}%`], function (error, users) {
         if (error) {
             return res.status(500).json({ message: 'Internal Server Error' });
         }
@@ -151,7 +160,7 @@ exports.search = (req, res) => {
             )
         ORDER BY commission.created_at DESC 
         `
-        dbConn.query(cms_query, [`%${search_query}%`, `%${search_query}%`], function(error, cms) {
+        dbConn.query(cms_query, [`%${search_query}%`, `%${search_query}%`], function (error, cms) {
             if (error) {
                 return res.status(500).json({ message: 'Internal Server Error' });
             }
@@ -184,12 +193,12 @@ exports.search = (req, res) => {
                     artwork.artw_desc LIKE ? AND artwork.deleted_at IS NULL
                 ORDER BY created_at DESC
             `
-            dbConn.query(artwork_query, [`%${search_query}%`], function(error, artwork){
+            dbConn.query(artwork_query, [`%${search_query}%`], function (error, artwork) {
                 if (error) {
                     return res.status(500).json({ message: 'Internal Server Error' });
                 }
                 // console.log(artwrok);
-                return res.status(200).json({status: "ok", users, cms_uniqueResults, artwork})
+                return res.status(200).json({ status: "ok", users, cms_uniqueResults, artwork })
             })
         })
     })

@@ -62,7 +62,7 @@ exports.addCommission = (req, res) => {
       let count = 0;
       //ภาพเส้นเปล่า ภาพลงสีพื้น ภาพลงสีเต็ม
       if (index == 0) {
-        newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
+        newAllSteps += "ส่งคำขอจ้าง,ตอบรับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
       }
       newAllSteps += "ภาพ" + wip + ","
 
@@ -917,7 +917,7 @@ exports.getCommission = (req, res) => {
       users.urs_name,
       package_in_cms.pkg_id, 
       package_in_cms.pkg_min_price,
-      commission_has_topic.tp_id,
+      commission_has_topic.tp_id
     FROM 
         commission
     JOIN 
