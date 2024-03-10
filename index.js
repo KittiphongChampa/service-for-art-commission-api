@@ -81,6 +81,15 @@ io.on('connection', (socket) => {
     }
   });
 
+  //ส่ง payment
+
+  socket.on("update-payment", (data) => {
+    const sendUserSocket = onlineUsers.get(data.to);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("update-payment", { msgId: data.msgId, msg: data.msg, od_id: data.od_id, to: data.to, step_id: data.step_id, step_name: data.step_name, status: data.status, checked: data.checked, isSystemMsg: data.isSystemMsg, current_time: data.current_time, from: data.from });
+    }
+  });
+
   // users-user
   // แจ้งเตือนเมื่อนักวาดยอมรับ
   socket.on('acceptOrder', (data) => {
@@ -216,6 +225,18 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on("workhasdeletedByadmin", (data) => {
+    console.log(data);
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  })
+
 
   // admin
   socket.on("reportCommission", (data) => {
@@ -233,6 +254,7 @@ io.on('connection', (socket) => {
       })
     })
   });
+
 
 
 });

@@ -61,6 +61,7 @@ router.post("/messages/addmsg", chatController.addMessages);
 router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
 router.patch("/commission/update/:id", auth.verifyToken, cmsController.updateCommission);
 router.patch("/commission/delete/:id", cmsController.deleteCommission);
+router.patch("/changestatus/:id", cmsController.manageStatusCms);
 
 
 //indexCommissionController
@@ -130,7 +131,7 @@ router.get("/getdataPieChart", adminController.dataPieChart );
 router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
 router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
 router.patch("/commission/problem/approve/:id", adminController.problemCommissionApprove);
-router.patch("/commission/problem/notapprove/:id", adminController.problemCommissionNotApprove);
+router.patch("/commission/problem/notapprove/:id", auth.verifyToken, adminController.problemCommissionNotApprove);
 
 //artist-dashboard
 router.get("/getYearDataArtist", auth.verifyToken, artistDashboardController.getYearDataArtist);

@@ -15,11 +15,11 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.addCommission = (req, res) => {
   // console.log(req.body);
-    function insertCommission(data, userId, date) {
+    function insertCommission(data, userId) {
       return new Promise((resolve, reject) => {
         dbConn.query(
-            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, cms_status=?, usr_id=?, created_at=?",
-            [...data, userId, date],
+            "INSERT INTO commission SET cms_name=?, cms_desc=?, cms_amount_q=?, cms_good_at=?, cms_bad_at=?, cms_no_talking=?, cms_status=?, usr_id=?",
+            [...data, userId],
             (error, results) => {
             if (error) {
                 reject(error);
@@ -32,63 +32,40 @@ exports.addCommission = (req, res) => {
       });
     }
   
-    function insertPackage(data, step, commissionId, userId, date) {
-      // console.log('step',step);
-      // console.log('step',step.split(',').length);
-      const allWipArr = step.split(',')
-      const halfWip = Math.floor(allWipArr.length / 2) //หารครึี่งปัดเศษลงหลังจากสเตปนี้ต้องจ่ายสลิป2
-      let newAllSteps = ""
-      allWipArr.map((wip, index) => {
-        //มี 2 ขั้นตอน มี 0 และ 1
-        //half = 1
-        //ถ้ามี 2 ขั้นตอนเข้า 2 เงื่อนไขแรก ถ้ามี 1 ขั้นตอนเข้า 3 เงื่อนไข
-        // let count = 0;
-        // if (index == 0) {
-        //   newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
-        //   count += 1;
-        // }
-
-        // if (count <= 1) newAllSteps += "ภาพ" + wip +","
-        
-        // if (index == halfWip) {
-        //   newAllSteps += "แนบสลิป2,ตรวจสอบใบเสร็จ2,"
-        //   count += 1;
-        // }
-        // if (index == allWipArr.length - 1) {
-        //   newAllSteps += "ภาพไฟนัล,แอดมินอนุมัติ,รีวิว"
-        //   count += 1;
-        // }
-
-        let count = 0;
+    function insertPackage(data, step, commissionId, userId) {
+      const allWipArr = step.split(',');
+      const halfWip = Math.floor(allWipArr.length / 2); //หารครึี่งปัดเศษลงหลังจากสเตปนี้ต้องจ่ายสลิป2
+      let newAllSteps = "";
+    
+      allWipArr.forEach((wip, index) => {
         //ภาพเส้นเปล่า ภาพลงสีพื้น ภาพลงสีเต็ม
         if (index == 0) {
-          newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,"
+          newAllSteps += "ส่งคำขอจ้าง,รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,";
         }
-        newAllSteps += "ภาพ" + wip + ","
-
+        newAllSteps += "ภาพ" + wip + ",";
         if (index == allWipArr.length - 1) {
-          newAllSteps += "ภาพไฟนัล,แนบสลิป2,ตรวจสอบใบเสร็จ2,แอดมินอนุมัติ,รีวิว"
+          newAllSteps += "ภาพไฟนัล,แนบสลิป2,ตรวจสอบใบเสร็จ2,แอดมินอนุมัติ,รีวิว";
         }
-      })
-
-      console.log("newAllSteps="+newAllSteps)
-
+      });
+    
+      console.log("newAllSteps=" + newAllSteps);
+    
       return new Promise((resolve, reject) => {
         dbConn.query(
-          "INSERT INTO package_in_cms SET pkg_name=?, pkg_desc=?, pkg_min_price=?, pkg_duration=?, pkg_edits=?, cms_step=?, cms_id=?, usr_id=?, created_at=?",
-          [...data, newAllSteps, commissionId, userId, date],
-          //รับคำขอจ้าง,ภาพร่าง,ระบุราคา,แนบสลิป,ตรวจสอบใบเสร็จ,...ขั้นตอน,แนบสลิป2มตรวจสอบใบเสร็จ2,...ขั้นตอน,ภาพไฟนัล,แอดมินอนุมัติผลงาน,รีวิว
+          "INSERT INTO package_in_cms SET pkg_name=?, pkg_desc=?, pkg_min_price=?, pkg_duration=?, pkg_edits=?, cms_step=?, cms_id=?, usr_id=?",
+          [...data, newAllSteps, commissionId, userId],
           (error, result) => {
-          if (error) {
+            if (error) {
               reject(error);
-          } else {
-            console.log("package Success");
+            } else {
+              console.log("package Success");
               resolve(result);
-          }
+            }
           }
         );
       });
     }
+    
     
     function insertCms_has_topic(commission_topic, commissionId, userId) {
       const topics = commission_topic.split(','); // แยกค่า commission_topic เป็นรายการ
@@ -158,11 +135,11 @@ exports.addCommission = (req, res) => {
       });
     }
   
-    function insertExampleImage(image, commissionId, userId, date) {
+    function insertExampleImage(image, commissionId, userId) {
       return new Promise((resolve, reject) => {
         dbConn.query(
-          "INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, cms_id=?, usr_id=?, created_at=?",
-          [...image, commissionId, userId, date],
+          "INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, cms_id=?, usr_id=?",
+          [...image, commissionId, userId],
           (error, result) => {
             if (error) {
               reject(error);
@@ -213,7 +190,7 @@ exports.addCommission = (req, res) => {
       //insert cms
       const cms_status = "open";
       const commissionPromise = insertCommission(
-          [commission_name, commission_description, commission_que, good, bad, no_talking, cms_status],userId, date
+          [commission_name, commission_description, commission_que, good, bad, no_talking, cms_status],userId
       );
       commissionPromise.then((commissionId) => {
   
@@ -226,7 +203,6 @@ exports.addCommission = (req, res) => {
               step[i],
               commissionId,
               userId,
-              date
             );
           }
           console.log();
@@ -236,7 +212,6 @@ exports.addCommission = (req, res) => {
             step,
             commissionId,
             userId,
-            date
           );
         }
   
@@ -278,7 +253,6 @@ exports.addCommission = (req, res) => {
                       [image_name, image_cms],
                       commissionId,
                       userId,
-                      date
                     );
   
                     ExampleImagePromise.then((ExampleImageId) => {
@@ -306,7 +280,7 @@ exports.addCommission = (req, res) => {
           const image_name = image_cms.split("/images_cms/")[1];
   
           const ExampleImagePromise = insertExampleImage(
-            [image_name, image_cms], commissionId, userId, date
+            [image_name, image_cms], commissionId, userId
           );
   
           allQueries.push(ExampleImagePromise);
@@ -338,7 +312,7 @@ exports.addCommission = (req, res) => {
 };
 
 exports.latestCommission = (req, res) => {
-    const query = `
+  const query = `
     SELECT 
         commission.cms_id, 
         commission.cms_name, 
@@ -387,55 +361,55 @@ exports.latestCommission = (req, res) => {
 
     `;
 
-    dbConn.query(query, function (error, results) {
+  dbConn.query(query, function (error, results) {
 
         console.log(results);
 
-        if (error) {
-        console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
-        return res.json({ status: "error", message: "status error" });
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+
+    const uniqueCmsIds = new Set();
+    const uniqueResults = [];
+
+    results.forEach((row) => {
+      const cmsId = row.cms_id;
+      if (!uniqueCmsIds.has(cmsId)) {
+        uniqueCmsIds.add(cmsId);
+        uniqueResults.push(row);
+      } else {
+        const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
+        if (row.pkg_min_price < existingResult.pkg_min_price) {
+          // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
+          // ให้อัพเดทข้อมูล
+          Object.assign(existingResult, row);
         }
-
-        const uniqueCmsIds = new Set();
-        const uniqueResults = [];
-
-        results.forEach((row) => {
-        const cmsId = row.cms_id;
-        if (!uniqueCmsIds.has(cmsId)) {
-            uniqueCmsIds.add(cmsId);
-            uniqueResults.push(row);
-        } else {
-            const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
-            if (row.pkg_min_price < existingResult.pkg_min_price) {
-            // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
-            // ให้อัพเดทข้อมูล
-            Object.assign(existingResult, row);
-            }
-        }
-        });
-
-        // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
-        return res.status(200).json({ status: "ok", commissions: uniqueResults });
+      }
     });
+
+    // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+    return res.status(200).json({ status: "ok", commissions: uniqueResults });
+  });
 };
 
 exports.artistCommission = (req, res) => {
-    const myId = req.user.userId;
-    let myFollowings = [];
-    try {
-      dbConn.query(
-        "SELECT * FROM follow WHERE follower_id=?",
-        [myId],
-        function (error, results) {
-          let query = '';
-          if (error) {
-            console.log(error);
-          } else {
-            for (let i = 0; i < results.length; i++) {
-              const followingId = results[i].following_id;
-              myFollowings.push(followingId);
-            }
-            if (myFollowings.length > 0) {
+  const myId = req.user.userId;
+  let myFollowings = [];
+  try {
+    dbConn.query(
+      "SELECT * FROM follow WHERE follower_id=?",
+      [myId],
+      function (error, results) {
+        let query = '';
+        if (error) {
+          console.log(error);
+        } else {
+          for (let i = 0; i < results.length; i++) {
+            const followingId = results[i].following_id;
+            myFollowings.push(followingId);
+          }
+          if (myFollowings.length > 0) {
             // ตรงนี้คุณมีรายการ myFollowings ที่เป็นรายการ ID ของผู้ที่ฉันกำลังติดตาม
             // ใช้ myFollowings ในคำสั่ง SQL ด้านล่างเพื่อค้นหาข้อมูล commission ของพวกเขา
               query = `
@@ -646,14 +620,14 @@ exports.detailCommission = (req, res) => {
           tou_desc: result.tou_desc
         }));
 
-        // console.log(response);
-  
-        return res.status(200).json(response);
-      });
-    } catch (error) {
-      console.log(error);
-      return res.status(500).json({ status: "error", message: "Internal server error" });
-    }
+      // console.log(response);
+
+      return res.status(200).json(response);
+    });
+  } catch (error) {
+    console.log(error);
+    return res.status(500).json({ status: "error", message: "Internal server error" });
+  }
 };
 
 exports.getQueueInfo = (req, res) => {
@@ -666,7 +640,7 @@ exports.getQueueInfo = (req, res) => {
     WHERE c.cms_id = ? AND o.od_status = ?
     GROUP BY c.cms_id, c.cms_amount_q
   `
-  dbConn.query(getQueueSQL, [cmsID, od_status] ,(error, results) => {
+  dbConn.query(getQueueSQL, [cmsID, od_status], (error, results) => {
     if (error) {
       return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
     }
@@ -685,23 +659,23 @@ exports.getQueueInfo = (req, res) => {
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
       }
       console.log(result);
-      return res.status(200).json({ QueueInfo : results, QueueData : result});
+      return res.status(200).json({ QueueInfo: results, QueueData: result });
     })
     console.log(results);
   })
 };
-  
+
 exports.getQueue = (req, res) => {
-    const cmsID = req.params.id;
-    dbConn.query(`SELECT cms_amount_q FROM commission WHERE cms_id=?`, [cmsID],
-        function(error, results) {
-        if (error) {
-            return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-        } 
-        const Queue = results[0].cms_amount_q;
-        return res.status(200).json({ Queue });
-        }
-    );
+  const cmsID = req.params.id;
+  dbConn.query(`SELECT cms_amount_q FROM commission WHERE cms_id=?`, [cmsID],
+    function (error, results) {
+      if (error) {
+        return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
+      }
+      const Queue = results[0].cms_amount_q;
+      return res.status(200).json({ Queue });
+    }
+  );
 };
 
 exports.getQueueData = (req, res) => {
@@ -716,16 +690,16 @@ exports.getQueueData = (req, res) => {
   JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
   WHERE cms_order.cms_id = ?
   ORDER BY cms_order.od_q_number ASC`, [cmsId],
-  function(error, results){
+    function (error, results) {
       if (error) {
-          console.log(error);
-          return res.status(500).json({error})
+        console.log(error);
+        return res.status(500).json({ error })
       }
       // console.log(results);
       // const uniqueResults = Array.from(new Set(results));
       const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
-      return res.status(200).json({status:'ok', uniqueResults})
-  })
+      return res.status(200).json({ status: 'ok', uniqueResults })
+    })
 };
 
 // exports.updateCommission = (req, res) => {
@@ -843,7 +817,7 @@ exports.updateCommission = async (req, res) => {
 
     // เหลือทำการแก้ไขข้อมูลของ package
     const { package_id, package_name, package_detail, duration, price, edits } = req.body;
-    
+
     if (Array.isArray(package_id)) {
       // กรณี package_id เป็น array (มีการอัปเดตหลายรายการ)
       // สร้าง array ของ objects ที่เก็บข้อมูลแต่ละชุดเป็นเจาะจง
@@ -855,7 +829,7 @@ exports.updateCommission = async (req, res) => {
         price: price[index],
         edits: edits[index]
       }));
-    
+
       // สร้างคำสั่ง SQL UPDATE โดยใช้ parameterized query
       const updatePackageSQL = `
         UPDATE package_in_cms
@@ -866,7 +840,7 @@ exports.updateCommission = async (req, res) => {
             pkg_edits = ?
         WHERE pkg_id = ?;
       `;
-    
+
       // execute คำสั่ง SQL UPDATE สำหรับทุกชุดข้อมูลพร้อมกัน
       packagesData.forEach(packageData => {
         const params = [
@@ -877,8 +851,8 @@ exports.updateCommission = async (req, res) => {
           packageData.edits,
           packageData.id
         ];
-    
-        dbConn.query(updatePackageSQL, params, function(error, result) {
+
+        dbConn.query(updatePackageSQL, params, function (error, result) {
           if (error) {
             console.log(error);
           } else {
@@ -897,7 +871,7 @@ exports.updateCommission = async (req, res) => {
             pkg_edits = ?
         WHERE pkg_id = ?;
       `;
-    
+
       const params = [
         package_name,
         package_detail,
@@ -906,8 +880,8 @@ exports.updateCommission = async (req, res) => {
         edits,
         package_id
       ];
-    
-      dbConn.query(updatePackageSQL, params, function(error, result) {
+
+      dbConn.query(updatePackageSQL, params, function (error, result) {
         if (error) {
           console.log(error);
         } else {
@@ -917,17 +891,17 @@ exports.updateCommission = async (req, res) => {
     }
 
     // ทำเกี่ยวกับการลบ package
-    if (deletedPkgIds != "" ) {
+    if (deletedPkgIds != "") {
       const delpkgSQL = `
         UPDATE package_in_cms SET deleted_at = ? WHERE pkg_id IN (?)
       `
-      dbConn.query(delpkgSQL, [date, deletedPkgIds], function(error, result){
+      dbConn.query(delpkgSQL, [date, deletedPkgIds], function (error, result) {
         if (error) {
           console.log(error);
         }
       })
     }
-    
+
 
 
 
@@ -946,17 +920,17 @@ exports.deleteCommission = (req, res) => {
       [date, cms_id],
       function (error, results) {
         if (error) {
-            console.log('deleteCommission : ',error);
-            return res.status(500).json({ status : 'error',})
+          console.log('deleteCommission : ', error);
+          return res.status(500).json({ status: 'error', })
         }
-        return res.status(200).json({ status : 'ok', message: "ลบคอมมิชชันสำเร็จ",})
+        return res.status(200).json({ status: 'ok', message: "ลบคอมมิชชันสำเร็จ", })
       }
     );
   } catch {
-      return res.json({
-          status: "catch",
-          message: "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
-      });
+    return res.json({
+      status: "catch",
+      message: "เกิดข้อผิดพลาดบางอย่าง กรุณาลองใหม่อีกครั้ง",
+    });
   }
 };
 
@@ -968,8 +942,8 @@ exports.getCommission = (req, res) => {
 
   let query = ``;
 
-  // ถ้าหากมี 0 แสดงว่าเป็นทั้งหมดให้ทำ if แต่ถ้าไม่ใช่ทำ else
-  if (topicValues.includes("0") && cmsStatus != "all") {
+  // เช็คทั้งหัวข้อจากทั้งหมด หากเป็น else จะหาเฉพาะ topicValues ที่เลือก
+  if (topicValues.length >= 19 && cmsStatus != "all") {
     query = `
     SELECT 
         commission.cms_id, 
@@ -1027,7 +1001,7 @@ exports.getCommission = (req, res) => {
       ${sortBy === 'คะแนนรีวิว ↓' ? 'cms_all_review DESC' : ''}
 
     `;
-  } else if (topicValues.includes("0") && cmsStatus == "all") {
+  } else if (topicValues.length >= 19 && cmsStatus == "all") {
     query = `
       SELECT 
       commission.cms_id, 
@@ -1212,32 +1186,35 @@ exports.getCommission = (req, res) => {
       results.forEach((row) => {
       const cmsId = row.cms_id;
       if (!uniqueCmsIds.has(cmsId)) {
-          uniqueCmsIds.add(cmsId);
-          uniqueResults.push(row);
+        uniqueCmsIds.add(cmsId);
+        uniqueResults.push(row);
       } else {
         const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
-          if (row.pkg_min_price < existingResult.pkg_min_price) {
+        if (row.pkg_min_price < existingResult.pkg_min_price) {
           // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
           // ให้อัพเดทข้อมูล
           Object.assign(existingResult, row);
-          }
         }
-      });
+      }
+    });
 
-      // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
-      return res.status(200).json({ status: "ok", commissions: uniqueResults });
+    // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+    return res.status(200).json({ status: "ok", commissions: uniqueResults });
   });
 };
+
 
 exports.getCommissionIfollow = (req, res) => {
   let sortBy = req.query.sortBy || 'ล่าสุด';
   let IFollowingIDs = req.query.IFollowingIDs || '';
-  let topicValues = req.query.topicValues || 'null';
+  let topicValues = req.query.topicValues || null;
   let cmsStatus = req.query.cmsStatus || 'open';
   // console.log(topicValues);
-  
+
   let query = ``;
-  if (topicValues.includes("0") && cmsStatus != "all") {
+
+  // เช็คทั้งหัวข้อจากทั้งหมด หากเป็น else จะหาเฉพาะ topicValues ที่เลือก
+  if (topicValues == 0 && cmsStatus != "all") {
     query = `
     SELECT 
       commission.cms_id, 
@@ -1295,7 +1272,7 @@ exports.getCommissionIfollow = (req, res) => {
       ${sortBy === 'คะแนนรีวิว ↑' ? 'commission.cms_all_review ASC' : ''}
       ${sortBy === 'คะแนนรีวิว ↓' ? 'commission.cms_all_review DESC' : ''}
     `;
-  } else if (topicValues.includes("0") && cmsStatus == "all") {
+  } else if (topicValues == 0 && cmsStatus == "all") {
     query = `
     SELECT 
       commission.cms_id, 
@@ -1473,29 +1450,59 @@ exports.getCommissionIfollow = (req, res) => {
     }
   }
   dbConn.query(query, function (error, results) {
-      // console.log(results);
-      if (error) {
-        console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
-        return res.json({ status: "error", message: "status error" });
-      }
-      const uniqueCmsIds = new Set();
-      const uniqueResults = [];
-      results.forEach((row) => {
+    // console.log(results);
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+    const uniqueCmsIds = new Set();
+    const uniqueResults = [];
+    results.forEach((row) => {
       const cmsId = row.cms_id;
       if (!uniqueCmsIds.has(cmsId)) {
-          uniqueCmsIds.add(cmsId);
-          uniqueResults.push(row);
+        uniqueCmsIds.add(cmsId);
+        uniqueResults.push(row);
       } else {
         const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
-          if (row.pkg_min_price < existingResult.pkg_min_price) {
+        if (row.pkg_min_price < existingResult.pkg_min_price) {
           // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
           // ให้อัพเดทข้อมูล
           Object.assign(existingResult, row);
-          }
         }
-      });
+      }
+    });
 
-      // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
-      return res.status(200).json({ status: "ok", commissions: uniqueResults });
+    // console.log(uniqueResults); // แสดงผลลัพธ์ใน console เพื่อตรวจสอบ
+    return res.status(200).json({ status: "ok", commissions: uniqueResults });
   });
 };
+
+
+exports.manageStatusCms = (req, res) => {
+  const cmsId = req.params.id;
+  const cmsStatus = req.body.cmsStatus
+  console.log(cmsStatus)
+  console.log(cmsId)
+  let newStatus;
+  if (cmsStatus == 'open') {
+    newStatus = 'close'
+  } else {
+    newStatus = 'open'
+  }
+
+  dbConn.query(
+    `UPDATE commission
+      SET cms_status = ? ,updated_at=?
+      WHERE cms_id = ?` ,
+    [newStatus, date, cmsId], function (error, result) {
+      if (error) {
+        res.json({ status: "error" })
+      } else {
+        res.json({ status: "ok" })
+        
+      }
+      
+
+    }
+  )
+}

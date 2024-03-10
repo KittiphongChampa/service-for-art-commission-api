@@ -183,8 +183,8 @@ exports.galloryAdd = async (req, res) => {
             const insertArtwork = (artworkDesc, userId) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO artwork SET artw_desc=?, usr_id=? ,created_at=? 
-                    `, [artworkDesc, userId, date], (error, results) => {
+                    INSERT INTO artwork SET artw_desc=?, usr_id=? 
+                    `, [artworkDesc, userId], (error, results) => {
                         if (error) {
                             reject(error);
                         } else {
@@ -224,8 +224,8 @@ exports.galloryAdd = async (req, res) => {
             const insertExample_img = (image_name, image_path, artw2_id) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?, created_at=?
-                    `, [image_name, image_path, userId, artw2_id, date], (error, resul) => {
+                    INSERT INTO example_img SET ex_img_name=?, ex_img_path=?, usr_id=?, artw2_id=?
+                    `, [image_name, image_path, userId, artw2_id], (error, resul) => {
                         if (error) {
                             console.error('Error inserting record:', error);
                             reject(error);
@@ -261,8 +261,8 @@ exports.galloryAdd = async (req, res) => {
             const insertArtwork = (ex_img_id, artworkDesc, userId) => {
                 return new Promise((resolve, reject) => {
                     dbConn.query(`
-                    INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?, created_at=?
-                    `, [ex_img_id, artworkDesc, userId, date], (error, results) => {
+                    INSERT INTO artwork SET ex_img_id=?, artw_desc=?, usr_id=?
+                    `, [ex_img_id, artworkDesc, userId], (error, results) => {
                         if (error) {
                             reject(error);
                         } else {
@@ -599,9 +599,9 @@ exports.galloryAll = (req, res) => {
     let sortBy = req.query.sortBy || 'ล่าสุด';
     let filterBy = req.query.filterBy || 'all';
     // let topic = req.query.topic;
-    let topicValues = req.query.topicValues || 'null';
+    let topicValues = req.query.topicValues || null;
     let sqlQuery = ``;
-    if (topicValues.includes("0")) {
+    if (topicValues == 0) {
         sqlQuery = `
         SELECT * FROM (
             SELECT 
@@ -683,15 +683,16 @@ exports.galloryAll = (req, res) => {
 
 exports.galleryIFollowArtist = (req, res) => {
     let sortBy = req.query.sortBy || 'ล่าสุด';
+    let topicValues = req.query.topicValues || null;
+    // console.log(topicValues);
     let IFollowingIDs = req.query.IFollowingIDs || '';
-    let topic = req.query.topic;
     
     if (IFollowingIDs==''){
         console.log('ไม่มีนักวาดที่ติดตามในหน้า artist');
         return res.status(200).json({ message: 'ไม่มีนักวาดที่ติดตาม' });
     } else {
         let sqlQuery = ``;
-        if (topic == 'เลือกทั้งหมด') {
+        if (topicValues == 0) {
             sqlQuery = `
             SELECT 
                 artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
@@ -735,7 +736,7 @@ exports.galleryIFollowArtist = (req, res) => {
             JOIN
                 artwork_has_topic ON artwork.artw_id = artwork_has_topic.artw2_id
             WHERE 
-                artwork.deleted_at IS NULL AND users.id IN (${IFollowingIDs}) AND artwork_has_topic.tp_id = ${topic}
+                artwork.deleted_at IS NULL AND users.id IN (${IFollowingIDs}) AND artwork_has_topic.tp_id IN (${topicValues})
             UNION
             SELECT
                 example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
@@ -750,9 +751,26 @@ exports.galleryIFollowArtist = (req, res) => {
             JOIN
                 artwork_has_topic ON example_img.artw2_id = artwork_has_topic.artw_id
             WHERE
-                example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND users.id IN (${IFollowingIDs}) AND artwork_has_topic.tp_id = ${topic}
+                example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND users.id IN (${IFollowingIDs}) AND artwork_has_topic.tp_id IN (${topicValues})
             ORDER BY created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
             `;
+
+
+
+            // sqlQuery = `
+            //     SELECT * 
+            //     FROM 
+            //         example_img img
+            //     JOIN 
+            //         users u ON img.usr_id = u.id
+            //     JOIN
+            //         artwork_has_topic ON img.artw2_id = artwork_has_topic.artw_id
+            //     WHERE 
+            //         u.id IN (${IFollowingIDs}) 
+            //         AND artwork_has_topic.tp_id IN ${topicValues}
+            //     ORDER BY 
+            //         img.created_at ${sortBy === 'เก่าสุด' ? 'ASC' : 'DESC'}
+            // `
         }
         
         dbConn.query(sqlQuery, (error, results) => {
@@ -760,7 +778,7 @@ exports.galleryIFollowArtist = (req, res) => {
                 console.log(error);
                 return res.status(500).json({ message: 'Internal Server Error', error: error.message });
             }
-            // console.log(results);
+            console.log(results);
             return res.status(200).json({ status:"ok", results, message: 'Success' });
         });
     }

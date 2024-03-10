@@ -18,13 +18,9 @@ const dbConn = mysql.createConnection(process.env.DATABASE_URL)
 // dbConn.connect();
 
 let date = new Date();
-let options = { timeZone: "Asia/Bangkok" };
-let bangkokTime = date.toLocaleString("th-TH", options);
+// let options = { timeZone: "Asia/Bangkok" };
+// let bangkokTime = date.toLocaleString("th-TH", options);
 
-// let currentTime = new Date();
-// console.log(currentTime.toLocaleString("th-TH", { timeZone: "Asia/Bangkok" }))
-
-// นำ date หรือ currentTime ไปบันทึกแทน current_Timestamp
 
 exports.chatPartner = (req, res) => {
     const partnerID = req.params.id;
@@ -319,8 +315,8 @@ exports.addMessages = (req, res, next) => {
         // order_id = null
         // console.log('dssdsdsdsd=',req.body);
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id,step_id,checked,status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-          [from, to, message, order_id, step_id, checked, status, date],
+          "INSERT INTO messages (sender, receiver, message_text, od_id, step_id, checked, status) VALUES (?, ?, ?, ?, ?, ?, ?)",
+          [from, to, message, order_id, step_id, checked, status],
           function (error, result) {
             if (result.affectedRows > 0) {
               return res.json({ msg: "Message added successfully." });
@@ -332,14 +328,14 @@ exports.addMessages = (req, res, next) => {
         )
       } else {
         dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text,od_id, created_at) VALUES (?, ?, ?, ?, ?)",
-          [from, to, message, order_id, date],
+          "INSERT INTO messages (sender, receiver, message_text,od_id) VALUES (?, ?, ?, ?)",
+          [from, to, message, order_id],
           function (error, result) {
             // console.log(result.affectedRows);
             if (result.affectedRows > 0) {
-              return res.json({ msg: "Message added successfully." });
+              return res.json({ status : "ok",msg: "Message added successfully." });
             } else {
-              return res.json({ msg: "Failed to add message to the database." });
+              return res.json({ status: "error", msg: "Failed to add message to the database." });
             }
           }
         )
@@ -371,8 +367,8 @@ exports.addMessages = (req, res, next) => {
       const image_chat = `${req.protocol}://${req.get("host")}${image}`;
       // console.log(image_chat);
       dbConn.query(
-        "INSERT INTO messages (sender, receiver, message_text, od_id, created_at) VALUES (?, ?, ?, ?, ?)",
-        [from, to, image_chat, od_id, date],
+        "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
+        [from, to, image_chat, od_id],
         function (error, result) {
           // console.log(result.affectedRows);
           if (result.affectedRows > 0) {

@@ -21,10 +21,10 @@ let options = { timeZone: "Asia/Bangkok" };
 let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.profile = (req, res) => {
-  const myId = req.user.userId;
-  const MyFollowerIds = [];
-  const IFollowingsIds = [];
   try {
+    const myId = req.user.userId;
+    let MyFollowerIds = [];
+    let IFollowingsIds = [];
     dbConn.query(
       "SELECT * FROM users WHERE id=?",
       [myId],
@@ -36,31 +36,30 @@ exports.profile = (req, res) => {
           dbConn.query(
             "SELECT * FROM follow WHERE following_id =? ", [myId], //ค้นหาเรา
             function (error, results) {
-              // console.log('ผลลัพธ์ :', results);
+              console.log('ผลลัพธ์ :', results);
               if (error) {
                 console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
-                return;
-              }else{
-                for (let x = 0; x < results.length; x++) {
-                  MyFollowerIds.push(results[x].follower_id);//ใครที่ติดตามเราบ้าง
-                }
-                dbConn.query(
-                  "SELECT * FROM follow WHERE follower_id =? ", [myId],
-                  function (err, result) {
-                    if (error) {
-                      console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
-                    } else {
-                      for (let x = 0; x < result.length; x++) {
-                        IFollowingsIds.push(result[x].following_id);//เราติดตามใครบ้าง
-                      }
-                      // ทั้งสองจะ log ออกมาเป็น array ที่มี id แสดง
-                      // console.log(MyFollowerIds);
-                      // console.log(IFollowingsIds);
-                      return res.json({ status: "ok", users, MyFollowerIds, IFollowingsIds });
-                    }
-                  }
-                )
+                return res.json({ status: "error", message: "เข้า error" });;
               }
+              for (let x = 0; x < results.length; x++) {
+                MyFollowerIds.push(results[x].follower_id);//ใครที่ติดตามเราบ้าง
+              }
+              dbConn.query(
+                "SELECT * FROM follow WHERE follower_id =? ", [myId],
+                function (err, result) {
+                  if (error) {
+                    console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
+                  } else {
+                    for (let x = 0; x < result.length; x++) {
+                      IFollowingsIds.push(result[x].following_id);//เราติดตามใครบ้าง
+                    }
+                    // ทั้งสองจะ log ออกมาเป็น array ที่มี id แสดง
+                    // console.log(MyFollowerIds);
+                    // console.log(IFollowingsIds);
+                    return res.json({ status: "ok", users, MyFollowerIds, IFollowingsIds });
+                  }
+                }
+              )
             }
           )
         }

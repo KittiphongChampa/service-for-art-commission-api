@@ -61,14 +61,14 @@ exports.user_addOrder = async (req, res) => {
       if (error) {
         console.log('เกิดข้อผิดพลาด');
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
-      } 
-      
+      }
+
       const available_slots = results[0].available_slots;
       if (available_slots > 0) {
         const insertCmsOrder = `
-          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?, ordered_at=?
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=?
         `
-        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, date], async (err, result) => {
+        dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status], async (err, result) => {
           if (err) {
             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
           }
@@ -85,7 +85,7 @@ exports.user_addOrder = async (req, res) => {
             console.error('Error:', error);
             return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
           }
-          
+
         })
       } else {
         return res.status(200).json({ status: "order_full", message: "ไม่สามารถบันทึกข้อมูลของ cms_order ได้เนื่อง commission นี้เต็มแล้ว" });
@@ -100,133 +100,133 @@ exports.user_addOrder = async (req, res) => {
 
 async function getCmsQueue(cmsID) {
   return new Promise((resolve, reject) => {
-      dbConn.query(`SELECT cms_amount_q FROM commission WHERE cms_id=?`, [cmsID], (error, results) => {
-          if (error) {
-              reject(error);
-          } else {
-              resolve(results[0].cms_amount_q);
-          }
-      });
+    dbConn.query(`SELECT cms_amount_q FROM commission WHERE cms_id=?`, [cmsID], (error, results) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(results[0].cms_amount_q);
+      }
+    });
   });
 }
 
 async function getLatestOdQNumber(cmsID) {
   return new Promise((resolve, reject) => {
-      dbConn.query(`SELECT od_q_number FROM cms_order WHERE cms_id=? ORDER BY od_id DESC LIMIT 1`, [cmsID], (error, result) => {
-          if (error) {
-              reject(error);
-          } else {
-              resolve(result.length > 0 ? result[0].od_q_number : null);
-          }
-      });
+    dbConn.query(`SELECT od_q_number FROM cms_order WHERE cms_id=? ORDER BY od_id DESC LIMIT 1`, [cmsID], (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result.length > 0 ? result[0].od_q_number : null);
+      }
+    });
   });
 }
 
 async function insertCmsOrder(cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_q_number) {
   return new Promise((resolve, reject) => {
-      dbConn.query(`INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_q_number=?`,
-          [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_q_number],
-          (errors, cms_order_result) => {
-              if (errors) {
-                  reject(errors);
-              } else {
-                  resolve(cms_order_result);
-              }
-          }
-      );
+    dbConn.query(`INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_q_number=?`,
+      [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_q_number],
+      (errors, cms_order_result) => {
+        if (errors) {
+          reject(errors);
+        } else {
+          resolve(cms_order_result);
+        }
+      }
+    );
   });
 }
 
 async function insertCmsSteps(orderId) {
   return new Promise((resolve, reject) => {
-      let arrayTest = [];
-      const sql1 = `
+    let arrayTest = [];
+    const sql1 = `
           SELECT cms_step 
           FROM package_in_cms 
           JOIN cms_order ON package_in_cms.pkg_id = cms_order.pkg_id
           WHERE cms_order.od_id = ?
       `;
-      dbConn.query(sql1, [orderId], async (error, result) => {
-          if (error) {
-              reject(error);
-          }
+    dbConn.query(sql1, [orderId], async (error, result) => {
+      if (error) {
+        reject(error);
+      }
 
-          if (result.length > 0) {
-              const cmsStep = result[0].cms_step;
-              arrayTest = cmsStep.split(',');
+      if (result.length > 0) {
+        const cmsStep = result[0].cms_step;
+        arrayTest = cmsStep.split(',');
 
-              for (let index = 0; index < arrayTest.length; index++) {
-                  const step_name = arrayTest[index];
-                  const checked_at = (index === 0) ? new Date() : null;
+        for (let index = 0; index < arrayTest.length; index++) {
+          const step_name = arrayTest[index];
+          const checked_at = (index === 0) ? new Date() : null;
 
-                  await insertCmsStep(orderId, step_name, checked_at);
-              }
+          await insertCmsStep(orderId, step_name, checked_at);
+        }
 
-              // เมื่อเสร็จสิ้นการเพิ่มข้อมูลลำดับคิวแล้ว ก่อน resolve ค่าออกไป ทำการอัปเดตค่า od_current_step_id ใน cms_order
-              const sqlUpdateOrder = `
+        // เมื่อเสร็จสิ้นการเพิ่มข้อมูลลำดับคิวแล้ว ก่อน resolve ค่าออกไป ทำการอัปเดตค่า od_current_step_id ใน cms_order
+        const sqlUpdateOrder = `
                   UPDATE cms_order 
                   SET od_current_step_id = (SELECT MIN(step_id) FROM cms_steps WHERE checked_at IS NULL AND od_id = ?)
                   WHERE od_id = ?
               `;
-              dbConn.query(sqlUpdateOrder, [orderId, orderId], (error, result) => {
-                  if (error) {
-                      reject(error);
-                  } else {
-                      resolve(arrayTest);
-                  }
-              });
+        dbConn.query(sqlUpdateOrder, [orderId, orderId], (error, result) => {
+          if (error) {
+            reject(error);
+          } else {
+            resolve(arrayTest);
           }
-      });
+        });
+      }
+    });
   });
 }
 
 
 async function insertCmsStep(orderId, step_name, checked_at) {
   return new Promise((resolve, reject) => {
-      const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
+    const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
 
-      dbConn.query(sql, [orderId, step_name, checked_at], (error, result) => {
-          if (error) {
-              reject(error);
-          } else {
-              resolve(result);
-          }
-      });
+    dbConn.query(sql, [orderId, step_name, checked_at], (error, result) => {
+      if (error) {
+        reject(error);
+      } else {
+        resolve(result);
+      }
+    });
   });
 }
 
 
 exports.addMessagesOrder = (req, res, next) => {
   const from = req.user.userId;
-    try {
-      const { to, od_id, step_id } = req.body;
-      // console.log(req.body);
-      const message = "ส่งคำขอจ้างแล้ว";
-      dbConn.query(
-        `INSERT INTO messages (sender, receiver, message_text, od_id,checked, step_id)
-        VALUES (?, ?, ?, ?, 0, (SELECT MIN(cms_steps.step_id) FROM cms_steps WHERE messages.od_id = cms_steps.od_id))`, 
-        [from, to, message, od_id],
-        function (error, result){
-          if (error) {
-            console.log(error);
-          } 
-          if (result.affectedRows > 0) {
-            return res.json({ status:'ok', msg: "Message added successfully.", result });
-          } else {
-            return res.json({ status:'error', msg: "Failed to add message to the database." });
-          }
+  try {
+    const { to, od_id, step_id } = req.body;
+    // console.log(req.body);
+    const message = "ส่งคำขอจ้างแล้ว";
+    dbConn.query(
+      `INSERT INTO messages (sender, receiver, message_text, od_id,checked, step_id)
+        VALUES (?, ?, ?, ?, 0, (SELECT MIN(cms_steps.step_id) FROM cms_steps WHERE messages.od_id = cms_steps.od_id))`,
+      [from, to, message, od_id],
+      function (error, result) {
+        if (error) {
+          console.log(error);
         }
-      )
-    } catch {
-      next();
-      return res.json({ status: "error", message: "status error" });
-    }
+        if (result.affectedRows > 0) {
+          return res.json({ status: 'ok', msg: "Message added successfully.", result });
+        } else {
+          return res.json({ status: 'error', msg: "Failed to add message to the database." });
+        }
+      }
+    )
+  } catch {
+    next();
+    return res.json({ status: "error", message: "status error" });
+  }
 };
 
 //------------test---------------
 // ต้องบันทึกข้อมูลที่ cms_step
 exports.test = (req, res) => {
-  
+
   const od_id = req.params.id;
   let arrayTest = [];
   const sql1 = `
@@ -236,7 +236,7 @@ exports.test = (req, res) => {
     WHERE cms_order.od_id = ?
   `
   // function insert ข้อมูลของ cms_step ใน package ไปเก็บที่ cms_step
-  dbConn.query(sql1, [od_id],(error, result) => {
+  dbConn.query(sql1, [od_id], (error, result) => {
     if (error) {
       console.log('error');
     }
@@ -247,20 +247,20 @@ exports.test = (req, res) => {
 
       // ใช้ split เพื่อแยกข้อมูล
       arrayTest = cmsStep.split(',');
-        arrayTest.forEach((step_name, index) => {
-          const checked_at = (index === 0) ? new Date() : null;
-      
-          const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
-          
-          dbConn.query(sql, [od_id, step_name, checked_at], (error, result) => {
-              if (error) {
-                  console.log('Error inserting data:', error);
-              } else {
-                  console.log('Data inserted successfully:', result);
-              }
-          });
+      arrayTest.forEach((step_name, index) => {
+        const checked_at = (index === 0) ? new Date() : null;
+
+        const sql = `INSERT INTO cms_steps SET od_id = ?, step_name = ?, checked_at = ?`;
+
+        dbConn.query(sql, [od_id, step_name, checked_at], (error, result) => {
+          if (error) {
+            console.log('Error inserting data:', error);
+          } else {
+            console.log('Data inserted successfully:', result);
+          }
+        });
       });
-      
+
     }
   })
 }
@@ -309,12 +309,12 @@ exports.updateStep = (req, res) => {
       if (first_pay_paid == null && paid !== undefined) {
         //ถ้ายังไม่จ่ายครั้งแรก
         dbConn.query(
-          "UPDATE cms_order SET od_first_pay = ? WHERE od_id = ?", [paid,od_id])
+          "UPDATE cms_order SET od_first_pay = ? WHERE od_id = ?", [paid, od_id])
       } else {
         dbConn.query(
           "UPDATE cms_order SET od_final_pay = ? WHERE od_id = ?", [paid, od_id])
       }
-      
+
       //กรณีไม่ได้แก้ไขภาพ เช็คสเต็ป succeed ตามเดิม
       dbConn.query(
         "UPDATE cms_steps SET checked_at = ? WHERE step_id = ?", [date, step_id],
@@ -344,6 +344,7 @@ exports.updateStep = (req, res) => {
                         console.log(error);
                       }
                       res.json(results[0]);
+                      console.log(results[0])
                     }
                   );
 
@@ -434,12 +435,14 @@ exports.getAllSteps = (req, res, next) => {
       // JOIN cms_steps ON messages.step_id = cms_steps.step_id
       // WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
       // FROM cms_steps WHERE od_id = ?` ,
-      `SELECT step_id, od_id , checked_at,step_name,step_type ,
+      `SELECT step_id, od_id , checked_at,step_name ,
+      
       (SELECT MAX(messages.step_id) FROM messages
       JOIN cms_steps ON messages.step_id = cms_steps.step_id
-      WHERE (messages.od_id = cms_steps.od_id AND messages.checked = 0) AND cms_steps.step_name LIKE '%ภาพ%' ) AS wip_sent
+      WHERE (messages.od_id = ? AND messages.checked = 0) ) AS wip_sent
+
       FROM cms_steps WHERE od_id = ?` ,
-      [od_id],
+      [od_id, od_id],
       function (error, results) {
         const allSteps = results.map((step) => {
           return {
@@ -447,7 +450,7 @@ exports.getAllSteps = (req, res, next) => {
             od_id: step.od_id,
             checked_at: step.checked_at,
             step_name: step.step_name,
-            step_type: step.step_type,
+            // step_type: step.step_type,
             step_id: step.step_id,
             wip_sent: step.wip_sent
           };
@@ -676,9 +679,9 @@ exports.getPayment = (req, res) => {
   dbConn.query(sql, [orderId], (error, PaymentData) => {
     if (error) {
       console.log(error);
-      return res.status(500).json({status: 'error'})
+      return res.status(500).json({ status: 'error' })
     }
-    return res.status(200).json({status: 'ok', PaymentData})
+    return res.status(200).json({ status: 'ok', PaymentData })
   })
 };
 
@@ -804,18 +807,20 @@ exports.getCmsReq = (req, res) => {
   const userID = req.user.userId;
   try {
     dbConn.query(
-      `SELECT *,
+      `SELECT od_q_number,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_edit_amount_price,od_price,ordered_at,
       (SELECT pkg_duration FROM package_in_cms WHERE cms_order.pkg_id = package_in_cms.pkg_id ) AS pkg_duration ,
       (SELECT urs_name FROM users WHERE id = cms_order.customer_id) AS customer_name,
       (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
       FROM cms_order
       JOIN commission ON commission.cms_id = cms_order.cms_id
       JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id
-      WHERE cms_order.customer_id = ?
+      WHERE cms_order.artist_id = ?
       ORDER BY ordered_at` ,
       [userID],
       function (error, results) {
         res.json(results);
+        console.log(results)
+        //od_q_number,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_edit_amount_price,od_price
       }
     );
   } catch (error) {
@@ -890,3 +895,4 @@ exports.cancelOrder = (req, res) => {
     console.log(error)
   }
 }
+

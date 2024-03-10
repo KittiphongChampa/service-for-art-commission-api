@@ -56,7 +56,7 @@ exports.verify = async (req, res) => {
         }
   
         try {
-          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?, created_at=?", [otp, date]);
+          const insertResult = await queryDatabase("INSERT INTO users SET OTP=?", [otp]);
           // const insertResult = await queryDatabase("INSERT INTO users (OTP, urs_email) VALUES (?, ?)", [otp, email]);
           const insertedUserID = insertResult ? insertResult.insertId : null;
           return res.json({ status: "ok", otp, insertedUserID });

@@ -337,8 +337,8 @@ exports.reportArtwork = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?, created_at=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, artw_id, date],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
+            [rpheader, rpdetail, rpemail, myId, usr_id, artw_id],
             function(err, result){
                 if (err) {
                     console.log(error);
@@ -355,8 +355,8 @@ exports.reportArtwork = (req, res) => {
                 return res.status(500).json({error})
             }
             const usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?, created_at=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, artw_id, date],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
+            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, artw_id],
             function(error, result){
                 if (error) {
                     console.log(error);
@@ -381,8 +381,8 @@ exports.reportCommission = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?, created_at=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, cms_id, date],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
+            [rpheader, rpdetail, rpemail, myId, usr_id, cms_id],
             function(err, result){
                 if (err) {
                     console.log(error);
@@ -399,8 +399,8 @@ exports.reportCommission = (req, res) => {
                 return res.status(500).json({error})
             }
             let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?, created_at=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, cms_id, date],
+            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
+            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, cms_id],
             function(err, result){
                 if (err) {
                     console.log(error);
@@ -459,7 +459,7 @@ exports.deleteReport = (req, res) => {
             })
         } else if (results[0].artw_id === null && results[0].cms_id !== null) {
             const cmsId = results[0].cms_id;
-            dbConn.query(`UPDATE send_report SET status=? WHERE artw_id IN (?)`,
+            dbConn.query(`UPDATE send_report SET status=? WHERE cms_id IN (?)`,
             [status, cmsId], function(error, result){
                 if (error) {
                     console.log(error);
@@ -474,6 +474,8 @@ exports.deleteReport = (req, res) => {
                     return res.status(200).json({status: "ok"})
                 })
             })
+        } else if (results[0].artw_id === null && results[0].cms_id === null && results[0].od_id !== null) {
+            console.log('ลบ cms นั้น หรือว่า');
         }
     })
 }

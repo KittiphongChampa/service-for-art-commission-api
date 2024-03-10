@@ -315,8 +315,8 @@ exports.addfaq = (req, res) => {
     const adminId = req.user.adminId;
     try {
       dbConn.query(
-        "INSERT INTO faq (faq_heading, faq_desc, admin_id, created_at) VALUES (?, ?, ?, ?)",
-        [question, answer, adminId, date],
+        "INSERT INTO faq (faq_heading, faq_desc, admin_id) VALUES (?, ?, ?)",
+        [question, answer, adminId],
         function (error, results) {
           if (results) {
             return res.json({
@@ -799,7 +799,7 @@ exports.problemCommission = (req, res) => {
 
 exports.problemCommissionApprove = (req, res) => {
   const cmsID = req.params.id;
-  const array_imgSimilar = req.query.array_imgSimilar;
+  const array_imgSimilar = req.query.array_imgSimilar; //เป็นไอดีของ example_img ทั้งหมด
   // console.log(cmsID);
   // console.log(array_imgSimilar);
   const status = "passed";
@@ -816,17 +816,32 @@ exports.problemCommissionApprove = (req, res) => {
 }
 
 exports.problemCommissionNotApprove = (req, res) => {
-  const cmsID = req.params.id;
-  dbConn.query("UPDATE commission SET deleted_at=? WHERE cms_id = ?",[date, cmsID],
-  function (error, results) {
-    if (results) {
-      return res.json({
-        status: "ok",
-      });
-    } else {
-      return res.json({ status: "error", message: error });
-    }
-  })
+  try {
+    const cmsID = req.params.id;
+    const adminId = req.user.adminId;
+    const reason = req.body.reason;
+    dbConn.query("UPDATE commission SET deleted_at=?, deleted_by=?, delete_reason=? WHERE cms_id = ?",[date, adminId, reason, cmsID],
+    function (error, results) {
+      if (error) {
+        console.log(error);
+        return res.json({ status: "error", message: error });
+      } 
+      dbConn.query(`UPDATE example_img SET deleted_at=?, deleted_by=?, delete_reason=? WHERE cms_id IN (?)`,[date, adminId, reason, cmsID],
+      function (err, result) {
+        if (err) {
+          console.log(error);
+          return res.json({ status: "error", message: error });
+        } 
+        console.log(result);
+        return res.json({
+          status: "ok",
+        });
+      })
+    })
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: error });
+  }
+  
 }
 
 exports.alladminIds = (req, res) => {
