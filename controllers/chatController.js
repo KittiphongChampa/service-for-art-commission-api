@@ -182,7 +182,7 @@ exports.allchat = (req, res) => {
             console.log(error);
             return res.json({ status: "error", message: "status error" });
           } 
-          console.log(contacts_order);
+          // console.log(contacts_order);
           return res.json({contacts, contacts_order });
         }
       );
@@ -319,13 +319,14 @@ exports.addMessages = (req, res, next) => {
 
       //-----------------------------------------------------------------------------
     } else {
-      const { from, to } = req.body;
+      console.log('request : ',req.body);
+      const { from, to, od_id } = req.body;
       const file = req.files.image;
       let order_id = od_id;
       if (od_id == 0) {
         order_id = null
       }
-      // console.log('request : ',req.body);
+      
       // console.log(file);
       var filename_random = __dirname.split("controllers")[0] + "/public/images_chat/" + randomstring.generate(50) + ".jpg";
       if (fs.existsSync("filename_random")) {
@@ -343,7 +344,7 @@ exports.addMessages = (req, res, next) => {
       // console.log(image_chat);
       dbConn.query(
         "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
-        [from, to, image_chat, od_id],
+        [from, to, image_chat, order_id],
         function (error, result) {
           // console.log(result.affectedRows);
           if (result.affectedRows > 0) {

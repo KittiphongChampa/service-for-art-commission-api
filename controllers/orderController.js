@@ -56,7 +56,7 @@ exports.user_addOrder = async (req, res) => {
       WHERE c.cms_id = ? 
     `
     dbConn.query(findQueueEmpty, [cmsID], async (error, results) => {
-      console.log(results);
+      // console.log(results);
 
       if (error) {
         console.log('เกิดข้อผิดพลาด');
@@ -811,7 +811,7 @@ exports.getMyReq = (req, res) => {
           console.log(error);
           res.status(500)
         }
-        console.log(results);
+        // console.log(results);
         res.status(200).json(results);
       }
     );
@@ -841,7 +841,7 @@ exports.getCmsReq = (req, res) => {
       [userID],
       function (error, results) {
         res.json(results);
-        console.log(results)
+        // console.log(results)
         //od_q_number,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_edit_amount_price,od_price
       }
     );
@@ -861,7 +861,7 @@ exports.getAllTou = (req, res) => {
       [od_id, od_id],
       function (error, results) {
         res.json(results);
-        console.log(results)
+        // console.log(results)
       }
     );
   } catch (error) {

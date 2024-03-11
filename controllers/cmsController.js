@@ -363,8 +363,6 @@ exports.latestCommission = (req, res) => {
 
   dbConn.query(query, function (error, results) {
 
-        console.log(results);
-
     if (error) {
       console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
       return res.json({ status: "error", message: "status error" });
@@ -658,10 +656,10 @@ exports.getQueueInfo = (req, res) => {
       if (err) {
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
       }
-      console.log(result);
+      // console.log(result);
       return res.status(200).json({ QueueInfo: results, QueueData: result });
     })
-    console.log(results);
+    // console.log(results);
   })
 };
 
@@ -754,7 +752,7 @@ exports.getQueueData = (req, res) => {
 // };
 
 exports.updateCommission = async (req, res) => {
-  console.log(req.body);
+  // console.log(req.body);
   const deletedPkgIds = req.query.deletedPkgIds;
   const userId = req.user.userId;
   const cms_id = req.params.id;
@@ -815,7 +813,7 @@ exports.updateCommission = async (req, res) => {
 
     const insertResults = await insertCms_type_of_use(typeofuse, cms_id, userId);
 
-    // เหลือทำการแก้ไขข้อมูลของ package
+    
     const { package_id, package_name, package_detail, duration, price, edits } = req.body;
 
     if (Array.isArray(package_id)) {
