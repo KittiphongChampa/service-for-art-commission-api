@@ -8,20 +8,6 @@ const crypto = require("crypto");
 const saltRounds = 10;
 const multer = require('multer');
 
-const storage = multer.diskStorage({
-  destination: './public/images_chat',
-  filename: (req, file, cb) => {
-      cb(null, randomstring.generate(50) + '.jpg');
-  }
-});
-
-const upload = multer({
-  storage,
-  limits: {
-      fileSize: 10000000 // 10MB
-  }
-});
-
 
 const mysql = require('mysql2')
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
@@ -335,89 +321,43 @@ exports.addMessages = (req, res, next) => {
 
       //-----------------------------------------------------------------------------
     } else {
-      const upload = multer({
-        storage: multer.diskStorage({
-          destination: './public/images_chat',
-          filename: (req, file, cb) => {
-            cb(null, randomstring.generate(50) + '.jpg');
-          }
-        }),
-        limits: {
-          fileSize: 10000000 // 10MB (adjust as needed)
-        }
-      }).single('image');
-      
-      upload(req, res, (err) => {
-        if (err) {
-          console.error(err);
-          return res.json({ status: "error", msg: "File upload failed." });
-        }
-
-        // Access uploaded file details in req.file
-
-        const { from, to, od_id } = req.body;
-        const file = req.file;
-        let order_id = od_id;
-        if (od_id == 0 || od_id == undefined) {
-          order_id = null;
-        }
-
-        const image = file.filename;
-        const image_chat = `${req.protocol}://${req.get("host")}/public/images_chat/${image}`;
-        const secure_image_chat = image_chat.replace(/^http:/, 'https:');
-
-        dbConn.query(
-          "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
-          [from, to, secure_image_chat, order_id],
-          function (error, result) {
-            if (result.affectedRows > 0) {
-              return res.json({ status: "ok", image_chat, msg: "Message added successfully." });
-            } else {
-              console.error(error);
-              return res.json({ status: "error", msg: "Failed to add message to the database." });
-            }
-          }
-        );
-      });
-
-
       // console.log('request : ',req.body);
-      // const { from, to, od_id } = req.body;
-      // const file = req.files.image;
-      // let order_id = od_id;
-      // if (od_id == 0) {
-      //   order_id = null
-      // }
+      const { from, to, od_id } = req.body;
+      const file = req.files.image;
+      let order_id = od_id;
+      if (od_id == 0) {
+        order_id = null
+      }
 
-      // var filename_random = __dirname.split("controllers")[0] + "/public/images_chat/" + randomstring.generate(50) + ".jpg";
-      // if (fs.existsSync("filename_random")) {
-      //   filename_random =
-      //     __dirname.split("controllers")[0] +
-      //     "/public/images_chat/" +
-      //     randomstring.generate(60) +
-      //     ".jpg";
-      //   file.mv(filename_random);
-      // } else {
-      //   file.mv(filename_random);
-      // }
-      // const image = filename_random.split("/public")[1];
-      // const image_chat = `${req.protocol}://${req.get("host")}${image}`;
+      var filename_random = __dirname.split("controllers")[0] + "/public/images_chat/" + randomstring.generate(50) + ".jpg";
+      if (fs.existsSync("filename_random")) {
+        filename_random =
+          __dirname.split("controllers")[0] +
+          "/public/images_chat/" +
+          randomstring.generate(60) +
+          ".jpg";
+        file.mv(filename_random);
+      } else {
+        file.mv(filename_random);
+      }
+      const image = filename_random.split("/public")[1];
+      const image_chat = `${req.protocol}://${req.get("host")}${image}`;
 
-      // const secure_image_chat = image_chat.replace(/^http:/, 'https:');
+      const secure_image_chat = image_chat.replace(/^http:/, 'https:');
       
-      // // console.log(image_chat);
-      // dbConn.query(
-      //   "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
-      //   [from, to, secure_image_chat, order_id],
-      //   function (error, result) {
-      //     // console.log(result.affectedRows);
-      //     if (result.affectedRows > 0) {
-      //       return res.json({ status: "ok",image_chat, msg: "Message added successfully." });
-      //     } else {
-      //       return res.json({ msg: "Failed to add message to the database." });
-      //     }
-      //   }
-      // )
+      // console.log(image_chat);
+      dbConn.query(
+        "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
+        [from, to, secure_image_chat, order_id],
+        function (error, result) {
+          // console.log(result.affectedRows);
+          if (result.affectedRows > 0) {
+            return res.json({ status: "ok",image_chat, msg: "Message added successfully." });
+          } else {
+            return res.json({ msg: "Failed to add message to the database." });
+          }
+        }
+      )
     }
   } catch (ex) {
     next(ex);
