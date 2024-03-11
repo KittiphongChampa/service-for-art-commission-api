@@ -341,10 +341,12 @@ exports.addMessages = (req, res, next) => {
       }
       const image = filename_random.split("/public")[1];
       const image_chat = `${req.protocol}://${req.get("host")}${image}`;
+      
+      const secure_image_chat = image_chat.replace(/^http:/, 'https:');
       // console.log(image_chat);
       dbConn.query(
         "INSERT INTO messages (sender, receiver, message_text, od_id) VALUES (?, ?, ?, ?)",
-        [from, to, image_chat, order_id],
+        [from, to, secure_image_chat, order_id],
         function (error, result) {
           // console.log(result.affectedRows);
           if (result.affectedRows > 0) {

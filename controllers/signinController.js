@@ -130,6 +130,9 @@ exports.register = (req, res) => {
     // const email = req.body.email;
     const image = filename_random.split("/public")[1];
     const profile = `${req.protocol}://${req.get("host")}${image}`;
+
+    const secure_profile = profile.replace(/^http:/, 'https:');
+
     const {userID ,email, password, username, pdpaAccept, bankAccName, ppNumber, roleName} = req.body;
     let userType = null;
     if(roleName=="customer"){
@@ -148,7 +151,7 @@ exports.register = (req, res) => {
         let coverColor = '#BDC5F5'
         dbConn.query(
           "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=?, urs_cover_color=? WHERE id=?",
-          [email, hash, username, profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
+          [email, hash, username, secure_profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
           function (error, results) {
             if (error) {
               return res.json({ status: "error", message: error.message });

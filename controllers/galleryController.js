@@ -250,11 +250,14 @@ exports.galloryAdd = async (req, res) => {
             }
             const image = filename_random.split("/public")[1];
             const image_path = `${req.protocol}://${req.get("host")}${image}`;
+
+            const secure_image_path = image_path.replace(/^http:/, 'https:');
+
             const image_name = image_path.split("/images_artwork/")[1];
 
             const artw2_id = await insertArtwork(artworkDesc, userId);
             await insertArtw_has_topic(artworkTopic, artw2_id, userId);
-            await insertExample_img(image_name, image_path, artw2_id);
+            await insertExample_img(image_name, secure_image_path, artw2_id);
 
             return res.status(200).json({ status: 'ok' });
         } else {

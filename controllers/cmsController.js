@@ -247,10 +247,13 @@ exports.addCommission = (req, res) => {
                   } else {
                     const image = filename_random.split("/public")[1];
                     const image_cms = `${req.protocol}://${req.get("host")}${image}`;
+
+                    const secure_image_cms = image_cms.replace(/^http:/, 'https:');
+
                     const image_name = image_cms.split("/images_cms/")[1];
   
                     const ExampleImagePromise = insertExampleImage(
-                      [image_name, image_cms],
+                      [image_name, secure_image_cms],
                       commissionId,
                       userId,
                     );
@@ -277,10 +280,13 @@ exports.addCommission = (req, res) => {
           }
           const image = filename_random.split("/public")[1];
           const image_cms = `${req.protocol}://${req.get("host")}${image}`;
+
+          const secure_image_cms = image_cms.replace(/^http:/, 'https:');
+
           const image_name = image_cms.split("/images_cms/")[1];
   
           const ExampleImagePromise = insertExampleImage(
-            [image_name, image_cms], commissionId, userId
+            [image_name, secure_image_cms], commissionId, userId
           );
   
           allQueries.push(ExampleImagePromise);

@@ -186,9 +186,12 @@ exports.update_profile_img = (req, res) => {
             file.mv(filename_random);
             const image = filename_random.split("/public")[1];
             const profile = `${req.protocol}://${req.get("host")}${image}`;
+
+            const secure_profile = profile.replace(/^http:/, 'https:');
+
             dbConn.query(
               "UPDATE users SET urs_profile_img =? WHERE id = ? ",
-              [profile, userId],
+              [secure_profile, userId],
               function (error, results) {
                 if (error) {
                   return res.json({ status: "error", message: error.message });

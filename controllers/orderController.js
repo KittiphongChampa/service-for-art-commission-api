@@ -641,7 +641,8 @@ exports.sendImageProgress = async (req, res) => {
               } else {
                 const image = filename_random.split('/public')[1];
                 const image_chat = `${req.protocol}://${req.get('host')}${image}`;
-                insert(image_chat, msgId).then(resolve).catch(reject);
+                const secure_image_chat = image_chat.replace(/^http:/, 'https:');
+                insert(secure_image_chat, msgId).then(resolve).catch(reject);
               }
             });
           });
@@ -669,7 +670,10 @@ exports.sendImageProgress = async (req, res) => {
           } else {
             const image = filename_random.split('/public')[1];
             const image_chat = `${req.protocol}://${req.get('host')}${image}`;
-            insert(image_chat, msgId).then((result) => {
+
+            const secure_image_chat = image_chat.replace(/^http:/, 'https:');
+
+            insert(secure_image_chat, msgId).then((result) => {
               const { att_img_path } = result;
               res.status(200).json({ status: 'ok', att_img_path });
             }).catch(reject);

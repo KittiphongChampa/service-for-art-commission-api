@@ -206,13 +206,15 @@ exports.createAdmin = (req, res) => {
     }
     const image = filename_random.split("/public")[1];
     const profile = `${req.protocol}://${req.get("host")}${image}`;
+
+    const secure_profile = profile.replace(/^http:/, 'https:');
   
     try {
       bcrypt.hash(password, saltRounds, function (err, hash) {
         console.log(hash);
         dbConn.query(
           "UPDATE admins SET admin_name=?, admin_email=?, admin_password=?, admin_type=?, admin_profile=? WHERE admin_id=?",
-          [name, email, hash, role, profile, AdminID],
+          [name, email, hash, role, secure_profile, AdminID],
           function (error, result) {
             if (error) {
               return res.json({ status: "error", message: error.message });
