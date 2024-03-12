@@ -830,7 +830,7 @@ exports.getCmsReq = (req, res) => {
   const userID = req.user.userId;
   try {
     dbConn.query(
-      `SELECT od_q_number,finished_at,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_price,ordered_at,finished_at,od_cancel_by,
+      `SELECT od_q_number,finished_at,od_id,cms_name,pkg_name,od_price,od_number_of_edit,od_price,ordered_at,finished_at,od_cancel_by,od_deadline,
       (SELECT pkg_duration FROM package_in_cms WHERE cms_order.pkg_id = package_in_cms.pkg_id ) AS pkg_duration ,
       (SELECT urs_name FROM users WHERE id = cms_order.customer_id) AS customer_name,
       (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
@@ -940,6 +940,8 @@ exports.cancelOrder = (req, res) => {
       SET od_cancel_by = ?,od_q_number = NULL
       WHERE od_id = ?` ,
       [date, od_id], function (error) {
+
+        
         dbConn.query(
           //โค้ดเลื่อนคิว
           `
