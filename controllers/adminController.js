@@ -214,7 +214,7 @@ exports.createAdmin = (req, res) => {
         console.log(hash);
         dbConn.query(
           "UPDATE admins SET admin_name=?, admin_email=?, admin_password=?, admin_type=?, admin_profile=? WHERE admin_id=?",
-          [name, email, hash, role, secure_profile, AdminID],
+          [name, email, hash, role, profile, AdminID],
           function (error, result) {
             if (error) {
               return res.json({ status: "error", message: error.message });

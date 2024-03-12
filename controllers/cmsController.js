@@ -253,7 +253,7 @@ exports.addCommission = (req, res) => {
                     const image_name = image_cms.split("/images_cms/")[1];
   
                     const ExampleImagePromise = insertExampleImage(
-                      [image_name, secure_image_cms],
+                      [image_name, image_cms],
                       commissionId,
                       userId,
                     );
@@ -286,7 +286,7 @@ exports.addCommission = (req, res) => {
           const image_name = image_cms.split("/images_cms/")[1];
   
           const ExampleImagePromise = insertExampleImage(
-            [image_name, secure_image_cms], commissionId, userId
+            [image_name, image_cms], commissionId, userId
           );
   
           allQueries.push(ExampleImagePromise);
@@ -662,7 +662,9 @@ exports.getQueueInfo = (req, res) => {
       if (err) {
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
       }
-      // console.log(result);
+      console.log(results);
+      console.log(result);
+
       return res.status(200).json({ QueueInfo: results, QueueData: result });
     })
     // console.log(results);
@@ -684,77 +686,67 @@ exports.getQueue = (req, res) => {
 
 exports.getQueueData = (req, res) => {
   const cmsId = req.params.id;
-  dbConn.query(`
-  SELECT cms_order.od_id, 
-  commission.cms_id, commission.cms_name,
-  package_in_cms.pkg_id, package_in_cms.pkg_name
-  FROM cms_order 
-  JOIN commission ON cms_order.cms_id = commission.cms_id
-  JOIN example_img ON cms_order.cms_id = example_img.cms_id
-  JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-  WHERE cms_order.cms_id = ?
-  ORDER BY cms_order.od_q_number ASC`, [cmsId],
-    function (error, results) {
-      if (error) {
-        console.log(error);
-        return res.status(500).json({ error })
-      }
-      // console.log(results);
-      // const uniqueResults = Array.from(new Set(results));
-      const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
-      return res.status(200).json({ status: 'ok', uniqueResults })
-    })
-};
+  const od_status = "inprogress";
+  const sql = `
+    SELECT 
+      o.od_id, o.od_q_number, o.ordered_at,
+      c.cms_id, c.cms_name,
+      pk.pkg_id, pk.pkg_name,
+      u.id, u.urs_name,
+      s.step_name
+    FROM cms_order o
+    JOIN 
+      commission c ON o.cms_id = c.cms_id
+    JOIN
+      package_in_cms pk ON c.cms_id = pk.cms_id
+    JOIN
+      users u ON u.id = o.customer_id
+    JOIN 
+      cms_steps s ON o.od_current_step_id = s.step_id
+    WHERE 
+      c.cms_id = ? AND o.od_status = ?
+    ORDER BY o.od_q_number ASC
+  `
+  dbConn.query(sql, [cmsId, od_status], function(error, results){
+    if (error) {
+      console.log(error);
+      return res.status(500).json({ error })
+    }
+    const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
+    // console.log(uniqueResults);
+    // console.log(results);
+    return res.status(200).json({ status: 'ok', results })
+  })
+}
 
-// exports.updateCommission = (req, res) => {
-//   try {
-//     function insertCms_type_of_use(typeofuse, cms_id, userId) {
-//       const tous = typeofuse.split(',');
-//       const records = tous.map((tou) => ({
-//         typeofused: tou,
-//         cms_id,
-//         userId,
-//       }));
-//       records.forEach((record) => {
-//         dbConn.query(
-//             "INSERT INTO commission_has_type_of_use (cms_id, usr_id, tou_id) VALUES (?, ?, ?)",
-//             [record.cms_id, record.userId, record.typeofused],
-//             (error, result) => {
-//             if (error) {
-//                 console.error('Error inserting record:', error);
-//             } else {
-//                 console.log('commission_has_type_of_use success:', result.insertId);
-//             }
-//           }
-//         );
-//       });
-//     }
-//     const userId = req.user.userId;
-//     const cms_id = req.params.id;
-//     const { commission_name, typeofuse, commission_description, commission_q, good, bad, no_talking } = req.body;
-//     dbConn.query(`
-//       UPDATE commission SET cms_name=? cms_desc=? cms_amount_q=? cms_good_at=? cms_bad_at=? cms_no_talking=? WHERE cms_id=? AND usr_id=?
-//     `,[commission_name, commission_description, commission_q, good, bad, no_talking], 
-//     function(error, results){
+// exports.getQueueData = (req, res) => {
+//   const cmsId = req.params.id;
+//   const od_status = "inprogress";
+//   dbConn.query(`
+//   SELECT 
+//     cms_order.od_id, 
+//     commission.cms_id, commission.cms_name,
+//     package_in_cms.pkg_id, package_in_cms.pkg_name
+//   FROM cms_order 
+//   JOIN 
+//     commission ON cms_order.cms_id = commission.cms_id
+//   JOIN 
+//     example_img ON cms_order.cms_id = example_img.cms_id
+//   JOIN 
+//     package_in_cms ON commission.cms_id = package_in_cms.cms_id
+//   WHERE 
+//     cms_order.cms_id = ?
+//   ORDER BY cms_order.od_q_number ASC`, [cmsId],
+//     function (error, results) {
 //       if (error) {
 //         console.log(error);
-//         return res.status(500).json({ status : 'error',})
+//         return res.status(500).json({ error })
 //       }
-//       dbConn.query(`DELETE FROM commission_has_type_of_use WHERE cms_id=? AND usr_id=?`,[cms_id, userId],
-//       function(err, result) {
-//         if (err) {
-//           console.log(err);
-//           return res.status(500).json({ status : 'error',})
-//         }
-//         insertCms_type_of_use(typeofuse, cms_id, userId);
-//       })
+//       // console.log(results);
+//       // const uniqueResults = Array.from(new Set(results));
+//       const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
+//       return res.status(200).json({ status: 'ok', uniqueResults })
 //     })
-//     // return res.status(200).json({ status : 'ok', message: "แก้ไข cms สำเร็จ",})
-
-//   } catch (error) {
-//     console.error('Error:', error);
-//     res.status(500).json({ status: 'error', message: 'An error occurred' });
-//   }
 // };
 
 exports.updateCommission = async (req, res) => {

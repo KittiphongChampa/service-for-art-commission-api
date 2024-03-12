@@ -352,7 +352,8 @@ exports.updateStep = (req, res) => {
                 function (error) {
                   dbConn.query(
                     `SELECT step_id, od_id ,
-                    checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
+                    checked_at,step_name,
+                    (SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
                     FROM cms_steps
                     WHERE od_id = ? AND checked_at IS NULL` ,
                     [od_id, od_id],
@@ -485,7 +486,8 @@ exports.getCurrentStep = (req, res, next) => {
   try {
     const { od_id } = req.body;
     dbConn.query(
-      `SELECT step_id, od_id , checked_at,step_name,(SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
+      `SELECT step_id, od_id , checked_at,step_name,
+      (SELECT MAX(messages.id) fROM messages WHERE messages.od_id = ? AND messages.checked = 0 AND messages.step_id != 0) AS msgId
       FROM cms_steps
       WHERE od_id = ? AND checked_at IS NULL` ,
       [od_id, od_id],
@@ -642,7 +644,7 @@ exports.sendImageProgress = async (req, res) => {
                 const image = filename_random.split('/public')[1];
                 const image_chat = `${req.protocol}://${req.get('host')}${image}`;
                 const secure_image_chat = image_chat.replace(/^http:/, 'https:');
-                insert(secure_image_chat, msgId).then(resolve).catch(reject);
+                insert(image_chat, msgId).then(resolve).catch(reject);
               }
             });
           });
@@ -673,7 +675,7 @@ exports.sendImageProgress = async (req, res) => {
 
             const secure_image_chat = image_chat.replace(/^http:/, 'https:');
 
-            insert(secure_image_chat, msgId).then((result) => {
+            insert(image_chat, msgId).then((result) => {
               const { att_img_path } = result;
               res.status(200).json({ status: 'ok', att_img_path });
             }).catch(reject);
@@ -879,7 +881,7 @@ exports.setDeadline = (req, res) => {
   // const deadline = new Date(startDate.setDate(startDate.getDate() + pkg_duration));
 
   const deadline = new Date();
-  const sumDay = deadline.getDate() + pkg_duration; io
+  const sumDay = deadline.getDate() + pkg_duration;
   deadline.setDate(sumDay)
   console.log(deadline);
 
@@ -1084,3 +1086,91 @@ exports.cancelSlip = (req, res) => {
   )
 
 }
+
+exports.getCmsReview = (req, res) => {
+  const cmsId = req.params.id;
+  console.log('เข้า : ',cmsId);
+  const sql = `
+  SELECT 
+    u.id, u.urs_name, u.urs_profile_img,
+    pk.pkg_id, pk.pkg_name, 
+    rw.rw_score, rw.rw_comment
+  FROM 
+    cms_order o
+  JOIN  
+    package_in_cms pk ON pk.pkg_id = o.pkg_id
+  JOIN
+    users u ON u.id = o.customer_id
+  JOIN
+    review rw ON rw.rw_id = o.rw_id
+  WHERE o.cms_id IN (?)
+
+  `
+
+  const sql2 = `
+    SELECT
+      rw.rw_id, rw.rw_score, rw.rw_comment
+    FROM
+      review rw
+
+
+  `
+  dbConn.query(sql2, function(error, results) {
+    if (error) {
+      console.log(error);
+      return res.status(500).json({error})
+    }
+    console.log(results);
+    return res.status(200).json(results)
+  })
+}
+
+exports.postSlipfiles = (req, res) => {
+  const od_id = req.body.od_id;
+  const slip_Image = req.files.slip_Image; // ตัวอย่างการอ่านรูปภาพที่ส่งมาจาก FormData
+  console.log(od_id);
+  console.log(slip_Image); // พิมพ์ข้อมูลรูปภาพที่รับมาจาก FormData
+
+  const sql = `
+    SELECT 
+      MAX(messages.id) as msgId 
+    FROM messages 
+    WHERE 
+      messages.od_id = ?
+  `
+  dbConn.query(sql, [od_id], function(err, result){
+    if (err) {
+      console.log(err);
+    }
+    console.log(result[0].msgId);
+    const msgId = result[0].msgId;
+    const file = req.files.slip_Image;
+  
+    if (!file || file.length === 0) {
+      return res.status(400).json({ error: "No files uploaded" });
+    }
+    var filename_random = __dirname.split("controllers")[0] + "/public/slipfiles/" + randomstring.generate(50) + ".jpg";
+    if (fs.existsSync("filename_random")) {
+      filename_random = __dirname.split("controllers")[0] +
+        "/public/slipfiles/" + randomstring.generate(60) + ".jpg";
+      file.mv(filename_random);
+    } else {
+      file.mv(filename_random);
+    }
+    const image = filename_random.split("/public")[1];
+    const slip_name = `${req.protocol}://${req.get("host")}${image}`;
+  
+    const secure_slip_name = slip_name.replace(/^http:/, 'https:');
+  
+    dbConn.query(`INSERT INTO attach_img SET att_img_path=?, chat_id=?`, [slip_name, msgId],
+    function(error, results) {
+      if (error) {
+        console.log(error);
+        return res.status(500)
+      }
+      return res.status(200).json({status : 'ok'})
+    })
+  })
+}
+
+

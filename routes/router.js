@@ -32,9 +32,10 @@ router.put("/reset-password", signinController.resetPassword);
 router.get("/index", auth.verifyToken, userDataController.index);
 router.get("/myCommission", auth.verifyToken, userDataController.myCommission);
 router.get("/myGallery", auth.verifyToken, userDataController.myGallery);
+router.get("/get/my/review", auth.verifyToken, userDataController.getMyReview)
 
 //profileController
-router.get("/profile", auth.verifyToken, auth.user_artisOnly, profileController.profile);
+router.get("/profile", auth.verifyToken, profileController.profile);
 router.get("/openFollower", profileController.openFollower)
 router.get("/openFollowing", profileController.openFollowing)
 router.put('/profile/password/change', auth.verifyToken, profileController.changePassword)
@@ -46,9 +47,12 @@ router.put("/delete_account", auth.verifyToken, profileController.delete_account
 
 //viewprofileController
 router.get("/profile/:id", auth.verifyToken, viewprofileController.viewProfile);
+router.get("/profile_notlogin/:id", viewprofileController.viewProfile_notlogin);
+
 router.post("/follow", auth.verifyToken, viewprofileController.follow);
 router.delete("/unfollow/:id", auth.verifyToken, viewprofileController.unfollow);
-router.get("/userCommission/:id", auth.verifyToken, viewprofileController.userCommission);
+router.get("/userCommission/:id", viewprofileController.userCommission);
+router.get("/get/your/review/:id", viewprofileController.getYourReview);
 
 //chat
 router.get("/index", auth.verifyToken, chatController.index);
@@ -188,6 +192,10 @@ router.post("/finishorder", orderController.finishOrder);
 router.post("/cancelorder", orderController.cancelOrder);
 router.post("/setdeadline", orderController.setDeadline);
 router.post("/cancelslip", orderController.cancelSlip);
+router.get("/get/cms/review/:id", orderController.getCmsReview)
+
+
+router.post("/upload-slip", orderController.postSlipfiles )
 
 
 

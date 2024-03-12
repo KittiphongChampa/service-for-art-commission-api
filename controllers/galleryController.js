@@ -257,7 +257,7 @@ exports.galloryAdd = async (req, res) => {
 
             const artw2_id = await insertArtwork(artworkDesc, userId);
             await insertArtw_has_topic(artworkTopic, artw2_id, userId);
-            await insertExample_img(image_name, secure_image_path, artw2_id);
+            await insertExample_img(image_name, image_path, artw2_id);
 
             return res.status(200).json({ status: 'ok' });
         } else {

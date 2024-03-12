@@ -191,7 +191,7 @@ exports.update_profile_img = (req, res) => {
 
             dbConn.query(
               "UPDATE users SET urs_profile_img =? WHERE id = ? ",
-              [secure_profile, userId],
+              [profile, userId],
               function (error, results) {
                 if (error) {
                   return res.json({ status: "error", message: error.message });

@@ -114,3 +114,30 @@ exports.myGallery = (req, res) => {
   })
 };
 
+exports.getMyReview = (req, res) => {
+  const myId = req.user.userId;
+  const sql = `
+    SELECT 
+      u.id, u.urs_name, u.urs_profile_img,
+      o.pkg_id, o.pkg_name, 
+      rw.rw_score, rw.rw_comment,
+    FROM 
+      cms_order o
+    JOIN  
+      package_in_cms pk ON pk.pkg_id = o.pkg_id
+    JOIN
+      users u ON u.id = o.customer_id
+    JOIN
+      review rw ON rw.rw_id = o.rw_id
+    WHERE o.artist_id IN (?)
+  `
+  dbConn.query(sql, [myId], function(error, results) {
+    if (error) {
+      console.log(error);
+      return res.status(500).json({error})
+    }
+    console.log(results);
+    return res.status(200).json(results)
+  })
+};
+

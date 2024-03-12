@@ -151,7 +151,7 @@ exports.register = (req, res) => {
         let coverColor = '#BDC5F5'
         dbConn.query(
           "UPDATE users SET urs_email=?, urs_password=?, urs_name=?,  urs_profile_img=?, urs_PDPA_accept=?, urs_account_name=?, urs_promptpay_number=?, urs_type=?, urs_cover_color=? WHERE id=?",
-          [email, hash, username, secure_profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
+          [email, hash, username, profile, pdpaAccept, bankAccName, ppNumber, userType, coverColor, userID],
           function (error, results) {
             if (error) {
               return res.json({ status: "error", message: error.message });
@@ -235,7 +235,7 @@ exports.login = (req, res) => {
                 );
               }
             );
-          }else if(admins){
+          } else if (admins){
             if (admins[0].deleted_at !== null) {
               return res.json({ status: "hasDelete", message: "Admin has deleted" });
             }

@@ -48,10 +48,10 @@ exports.viewProfile = (req,res) => {
         function (error, users) {
           if (error) {
             console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
-            return;
+            return res.status(500);
           } else {
             dbConn.query(
-              "SELECT * FROM follow WHERE following_id =? ", [userId], //ค้นหาทุกคนในตารางแต่เป็นคนที่เราเสิร์ช
+              "SELECT * FROM follow WHERE following_id =? ", [userId],
               function (error, results) {
                 if (error) {
                   return res.json({ status: "error", message: "เข้า error" });
@@ -72,7 +72,7 @@ exports.viewProfile = (req,res) => {
                   if (foundFollower) {
                     return res.json({ status: "ok", users, message: 'follow', followerIds});
                     
-                  }else {
+                  } else {
                     return res.json({ status: "ok", users, message: 'no_follow', followerIds});
                   }
   
@@ -86,6 +86,57 @@ exports.viewProfile = (req,res) => {
       return res.json({ status: "error", message: "เข้า catch" });
     }
 };
+
+exports.viewProfile_notlogin = (req, res) => {
+  const userId = req.params.id;
+  const followerIds = [];
+  const IFollowingsIds = [];
+  try {
+    dbConn.query(
+      `SELECT * ,
+    (SELECT COUNT(*)
+      FROM review
+      JOIN cms_order ON review.od_id = cms_order.od_id
+      WHERE users.id = cms_order.artist_id
+    ) AS rw_number,
+    (SELECT COUNT(*)
+      FROM cms_order
+      WHERE users.id = cms_order.artist_id AND finished_at IS NOT NULL
+    ) AS success,
+    (SELECT COUNT(*)
+      FROM cms_order
+      WHERE users.id = cms_order.artist_id AND od_cancel_by IS NOT NULL
+    ) AS cancel
+    FROM users WHERE id=?`,
+      // "SELECT * FROM users JOIN follow ON users.id = follow.follower_id",
+      [userId],
+      function (error, users) {
+        if (error) {
+          console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
+          return res.status(500);
+        } else {
+          dbConn.query(
+            "SELECT * FROM follow WHERE following_id =? ", [userId],
+            function (error, results) {
+              if (error) {
+                return res.json({ status: "error", message: "เข้า error" });
+              }   
+              // let totalFollowers = results.length; //จำนวนผู้ติดตามทั้งหมด
+              for (let x = 0; x < results.length; x++) {
+                followerIds.push(results[x].follower_id);//ใครที่ติดตามบ้าง
+              }
+
+              return res.json({ status: "ok", users, message: 'no_follow', followerIds});
+              
+            }
+          )
+        }
+      }
+    );
+  } catch (err) {
+    return res.json({ status: "error", message: "เข้า catch" });
+  }
+}
   
 exports.follow = (req,res) => {
     const {id} = req.body;
@@ -160,3 +211,30 @@ exports.userCommission =(req, res) => {
     return res.status(200).json({ status: "ok", commissions: uniqueResults });
   });
 }
+
+exports.getYourReview = (req, res) => {
+  const userId = req.params.id
+  const sql = `
+    SELECT 
+      u.id, u.urs_name, u.urs_profile_img,
+      o.pkg_id, o.pkg_name, 
+      rw.rw_score, rw.rw_comment,
+    FROM 
+      cms_order o
+    JOIN  
+      package_in_cms pk ON pk.pkg_id = o.pkg_id
+    JOIN
+      users u ON u.id = o.customer_id
+    JOIN
+      review rw ON rw.rw_id = o.rw_id
+    WHERE o.artist_id IN (?)
+  `
+  dbConn.query(sql, [userId], function(error, results) {
+    if (error) {
+      console.log(error);
+      return res.status(500).json({error})
+    }
+    console.log(results);
+    return res.status(200).json(results)
+  })
+};
