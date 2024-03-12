@@ -193,6 +193,8 @@ router.post("/cancelorder", orderController.cancelOrder);
 router.post("/setdeadline", orderController.setDeadline);
 router.post("/cancelslip", orderController.cancelSlip);
 router.get("/get/cms/review/:id", orderController.getCmsReview)
+router.post("/final-images/add", orderController.finalImageAdd);
+
 
 
 router.post("/upload-slip", orderController.postSlipfiles )

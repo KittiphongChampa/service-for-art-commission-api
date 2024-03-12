@@ -46,7 +46,7 @@ let bangkokTime = date.toLocaleString("en-US", options);
 exports.user_addOrder = async (req, res) => {
   try {
     const userID = req.user.userId;
-    const { cmsID, artistId, pkgId, od_use_for, od_detail } = req.body;
+    const { cmsID, artistId, pkgId, od_use_for, od_detail, selectedValue } = req.body;
     const od_status = "inprogress";
 
     const findQueueEmpty = `
@@ -78,9 +78,9 @@ exports.user_addOrder = async (req, res) => {
             now_q = maxQRes[0].q + 1
           }
           const insertCmsOrder = `
-          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=? ,od_q_number=?
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=? ,od_q_number=?, od_tou=?
         `
-          dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, now_q], async (err, result) => {
+          dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, now_q, selectedValue], async (err, result) => {
             if (err) {
               console.log("เกิดข้อผิดพลาดที่ ERR");
               return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
@@ -887,7 +887,7 @@ exports.setDeadline = (req, res) => {
 
   try {
     dbConn.query(
-      `UPDATE cms_order,
+      `UPDATE cms_order
       SET od_deadline = ?
       WHERE od_id = ?` ,
       [deadline, od_id]
@@ -1130,8 +1130,8 @@ exports.getCmsReview = (req, res) => {
 exports.postSlipfiles = (req, res) => {
   const od_id = req.body.od_id;
   const slip_Image = req.files.slip_Image; // ตัวอย่างการอ่านรูปภาพที่ส่งมาจาก FormData
-  console.log(od_id);
-  console.log(slip_Image); // พิมพ์ข้อมูลรูปภาพที่รับมาจาก FormData
+  // console.log(od_id);
+  // console.log(slip_Image); // พิมพ์ข้อมูลรูปภาพที่รับมาจาก FormData
 
   const sql = `
     SELECT 
@@ -1167,11 +1167,42 @@ exports.postSlipfiles = (req, res) => {
     dbConn.query(`INSERT INTO attach_img SET att_img_path=?, chat_id=?`, [slip_name, msgId],
     function(error, results) {
       if (error) {
-        console.log(error);
         return res.status(500)
       }
-      return res.status(200).json({status : 'ok'})
+      return res.status(200).json({status : 'ok', slip_name})
     })
+  })
+}
+
+exports.finalImageAdd = (req, res) => {
+
+  if (req.files === undefined) {
+    return res.json({ status: "error", message: "No File Uploaded" });
+  }
+  const file = req.files.final_Image;
+  const userId = req.body.userID;
+
+  var filename_random = __dirname.split("controllers")[0] + "/public/final_images/" + randomstring.generate(50) + ".jpg";
+  if (fs.existsSync("filename_random")) {
+    filename_random = __dirname.split("controllers")[0] + "/public/final_images/" + randomstring.generate(60) + ".jpg";
+    file.mv(filename_random);
+  } else {
+    file.mv(filename_random);
+  }
+  const final_img_name = filename_random.split("/public")[1];
+  const final_img_path = `${req.protocol}://${req.get("host")}${final_img_name}`;
+
+  const sql = `
+    INSERT INTO final_images SET final_img_name=?, final_img_path=?, usr_id=?
+  `
+  dbConn.query(sql, [final_img_name, final_img_path, userId],function(error, results){
+    if (error) {
+      console.log(error);
+      res.status(500)
+    }
+    const finalId = results.insertId;
+    return res.status(200).json({status: "ok", final_img_name, finalId})
+
   })
 }
 
