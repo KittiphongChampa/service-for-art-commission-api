@@ -44,7 +44,7 @@ exports.addCommission = (req, res) => {
         }
         newAllSteps += "ภาพ" + wip + ",";
         if (index == allWipArr.length - 1) {
-          newAllSteps += "ภาพไฟนัล,แนบสลิป2,ตรวจสอบใบเสร็จ2,แอดมินอนุมัติ,รีวิว";
+          newAllSteps += "ภาพไฟนัล,แนบสลิป2,ตรวจสอบใบเสร็จ2,รีวิว";
         }
       });
     

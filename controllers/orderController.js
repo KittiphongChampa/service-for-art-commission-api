@@ -711,87 +711,84 @@ exports.getPayment = (req, res) => {
 exports.sendReview = (req, res) => {
   const { od_id, rw_comment, rw_score, cms_id, artist_id, all } = req.body;
   try {
-    dbConn.query(
-      `INSERT INTO review (rw_comment,rw_score,od_id) VALUES (?,?,?)`
-      , [rw_comment, rw_score, od_id],
+    dbConn.query(`INSERT INTO review (rw_comment,rw_score,od_id) VALUES (?, ?, ?)`, [ rw_comment, rw_score, od_id ],
       function (error, insertResult) {
         if (error) {
           console.error(error);
-          // จัดการข้อผิดพลาดตามต้องการ
-          return;
+          return res.status(500).send();
         }
-        // query ถูกเรียกใช้งานเสร็จสมบูรณ์ ทำการ query ต่อ
-        dbConn.query(
-          `SELECT rw_score
-      FROM review
-      JOIN cms_order ON cms_order.od_id = review.od_id
-      WHERE cms_order.cms_id = ? `,
-          [cms_id],
-          function (error, allOdRw) {
-            if (error) {
-              console.error(error);
-              return;
-            }
-            const total = allOdRw.reduce(function (previousValue, currentValue) {
-              return {
-                rw_score: previousValue.rw_score + currentValue.rw_score
-              };
-            });
-            const sum_score = total.rw_score / allOdRw.length
-            const avg_cms_review = sum_score.toFixed(1)
-            console.log(avg_cms_review);
-
-            //อัปเดตลงใน commission
-
-            dbConn.query(
-              `UPDATE commission
-              SET cms_all_review = ?
-              WHERE cms_id = ?`
-              , [avg_cms_review, cms_id],
-              function (error, aaa) {
-                if (error) {
-                  console.error(error);
-                  return;
-                }
-                dbConn.query(
-                  `SELECT cms_all_review
-                  FROM commission
-                  WHERE usr_id = ? AND cms_all_review IS NOT NULL`,
-                  [artist_id],
-                  function (error, allCmsRw) {
-                    const total2 = allCmsRw.reduce(function (previousValue, currentValue) {
-                      return {
-                        cms_all_review: previousValue.cms_all_review + currentValue.cms_all_review
-                      };
-                    });
-
-                    const sum_score2 = total2.cms_all_review / allCmsRw.length
-                    const avg_urs_review = sum_score2.toFixed(1)
-                    console.log(allCmsRw.length, avg_urs_review)
-                    // console.log(artist_id)
-                    dbConn.query(
-                      `UPDATE users
-                      SET urs_all_review = ?
-                      WHERE id = ?`
-                      , [avg_urs_review, artist_id],
-                      function (error, res) {
-                        if (error) {
-                          console.error(error);
-                          return;
-                        }
-                      }
-                    )
-                  }
-                )
-              }
-            )
-
+        const rw_id = insertResult.insertId;
+        dbConn.query(`UPDATE cms_order SET rw_id = ? WHERE od_id = ?`, [rw_id, od_id],function(err, results){
+          if (error) {
+            console.error(error);
+            return res.status(500).send();
           }
-        );
+        
+          dbConn.query(`SELECT rw_score FROM review JOIN cms_order ON cms_order.od_id = review.od_id WHERE cms_order.cms_id = ? `, [cms_id], function (error, allOdRw) {
+              if (error) {
+                console.error(error);
+                return;
+              }
+              const total = allOdRw.reduce(function (previousValue, currentValue) {
+                return {
+                  rw_score: previousValue.rw_score + currentValue.rw_score
+                };
+              });
+              const sum_score = total.rw_score / allOdRw.length
+              const avg_cms_review = sum_score.toFixed(1)
+              console.log(avg_cms_review);
+
+              //อัปเดตลงใน commission
+              dbConn.query(
+                `UPDATE commission
+                SET cms_all_review = ?
+                WHERE cms_id = ?`
+                , [avg_cms_review, cms_id],
+                function (error, aaa) {
+                  if (error) {
+                    console.error(error);
+                    return;
+                  }
+                  dbConn.query(
+                    `SELECT cms_all_review
+                    FROM commission
+                    WHERE usr_id = ? AND cms_all_review IS NOT NULL`,
+                    [artist_id],
+                    function (error, allCmsRw) {
+                      const total2 = allCmsRw.reduce(function (previousValue, currentValue) {
+                        return {
+                          cms_all_review: previousValue.cms_all_review + currentValue.cms_all_review
+                        };
+                      });
+
+                      const sum_score2 = total2.cms_all_review / allCmsRw.length
+                      const avg_urs_review = sum_score2.toFixed(1)
+                      console.log(allCmsRw.length, avg_urs_review)
+                      // console.log(artist_id)
+                      dbConn.query(
+                        `UPDATE users
+                        SET urs_all_review = ?
+                        WHERE id = ?`
+                        , [avg_urs_review, artist_id],
+                        function (error, result) {
+                          if (error) {
+                            console.error(error);
+                            return;
+                          }
+                          return res.status(200).json({status: "ok"})
+                        }
+                      )
+                    }
+                  )
+                }
+              )
+
+            }
+          )
+        });
       }
     )
-  }
-  catch {
+  } catch (error) {
     return res.json({
       status: "error",
       message: "ไม่สามารถอัปเดตสถานะได้ กรุณาลองใหม่อีกครั้ง",

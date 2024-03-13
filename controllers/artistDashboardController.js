@@ -15,8 +15,8 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.getYearDataArtist = (req, res) => {
   const userID = req.user.userId;
-  let startDate = req.query.startDate;
-  let endDate = req.query.endDate;
+  let startDate = `${req.query.start} 00:00:00`;
+  let endDate = `${req.query.end} 23:59:59`;
   let sql = `
       SELECT
           DATE_FORMAT(created_at, '%Y-%m') AS date,
@@ -155,23 +155,10 @@ exports.getProfitOutOfYear = (req, res) => {
   let endDate = `${req.query.endDate} 23:59:59`;
   console.log(startDate);
   console.log(endDate);
-  let sql = `
-    SELECT 
-      DATE_FORMAT(finished_at, '%Y-%m-%d') AS monthData,
-      SUM(od_price) AS profit
-    FROM
-      cms_order
-    WHERE
-      artist_id = ?
-      AND finished_at >= ? AND finished_at <= ?
-      AND od_status = 'finished'
-    GROUP BY 
-      monthData,profit
-  `;
   // let sql = `
   //   SELECT 
   //     DATE_FORMAT(finished_at, '%Y-%m-%d') AS monthData,
-  //     SUM(od_price + od_edit_amount_price) AS profit
+  //     SUM(od_price) AS profit
   //   FROM
   //     cms_order
   //   WHERE
@@ -179,8 +166,21 @@ exports.getProfitOutOfYear = (req, res) => {
   //     AND finished_at >= ? AND finished_at <= ?
   //     AND od_status = 'finished'
   //   GROUP BY 
-  //     monthData
+  //     monthData,profit
   // `;
+  let sql = `
+    SELECT 
+      DATE_FORMAT(finished_at, '%Y-%m-%d') AS monthData,
+      SUM(od_price + od_edit_amount_price) AS profit
+    FROM
+      cms_order
+    WHERE
+      artist_id = ?
+      AND finished_at >= ? AND finished_at <= ?
+      AND od_status = 'finished'
+    GROUP BY 
+      monthData
+  `;
   dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
     if (error) {
       console.log(error);
@@ -193,26 +193,26 @@ exports.getProfitOutOfYear = (req, res) => {
 
 exports.getTopCommission = (req, res) => {
   const userID = req.user.userId;
-  const sql = `
-    SELECT c.cms_id, c.cms_name, u.id, u.urs_profile_img, SUM(o.od_price) as profit
-    FROM cms_order o 
-    JOIN users u ON o.customer_id = u.id
-    JOIN commission c ON o.cms_id = c.cms_id
-    WHERE artist_id = ? AND od_status = "finished"
-    GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img,profit
-    ORDER BY profit DESC
-    LIMIT 5 
-  `
   // const sql = `
-  //   SELECT c.cms_id, c.cms_name, u.id, u.urs_profile_img, SUM(o.od_price + o.od_edit_amount_price) as profit
+  //   SELECT c.cms_id, c.cms_name, u.id, u.urs_profile_img, SUM(o.od_price) as profit
   //   FROM cms_order o 
   //   JOIN users u ON o.customer_id = u.id
   //   JOIN commission c ON o.cms_id = c.cms_id
   //   WHERE artist_id = ? AND od_status = "finished"
-  //   GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img
+  //   GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img,profit
   //   ORDER BY profit DESC
   //   LIMIT 5 
   // `
+  const sql = `
+    SELECT c.cms_id, c.cms_name, u.id, u.urs_profile_img, SUM(o.od_price + o.od_edit_amount_price) as profit
+    FROM cms_order o 
+    JOIN users u ON o.customer_id = u.id
+    JOIN commission c ON o.cms_id = c.cms_id
+    WHERE artist_id = ? AND finished_at IS NOT NULL
+    GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img
+    ORDER BY profit DESC
+    LIMIT 5 
+  `
   dbConn.query(sql, [userID], function (error, result) {
     if (error) {
       console.log(error);
@@ -252,12 +252,12 @@ exports.getTopCustomer = (req, res) => {
       o.od_price AS profit
     FROM cms_order o 
     JOIN users u ON o.customer_id = u.id
-    WHERE artist_id = ? AND od_status = ?
+    WHERE artist_id = ? AND finished_at IS NOT NULL
     GROUP BY u.id, u.urs_profile_img, u.urs_name,profit
     ORDER BY profit DESC
     LIMIT 5 
   `
-  dbConn.query(sql, [userID, "finished"], function (error, results) {
+  dbConn.query(sql, [userID], function (error, results) {
     if (error) {
       console.log(error);
       return res.status(500).json({ error: 'Error occurred' });
@@ -284,20 +284,20 @@ exports.getCountFollower = (req, res) => {
 
 exports.getSumProfit = (req, res) => {
   const userID = req.user.userId;
-  const sql = `
-    SELECT 
-      SUM(od_price) AS profit 
-    FROM 
-      cms_order
-    WHERE artist_id = ? 
-  `
   // const sql = `
   //   SELECT 
-  //     COALESCE(SUM(od_price + od_edit_amount_price), 0) AS profit
+  //     SUM(od_price) AS profit 
   //   FROM 
   //     cms_order
   //   WHERE artist_id = ? 
   // `
+  const sql = `
+    SELECT 
+      COALESCE(SUM(od_price + od_edit_amount_price), 0) AS profit
+    FROM 
+      cms_order
+    WHERE artist_id = ? 
+  `
   dbConn.query(sql, [userID], function(error, results){
     if (error) {
       console.log(error);
