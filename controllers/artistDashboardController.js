@@ -15,8 +15,8 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.getYearDataArtist = (req, res) => {
   const userID = req.user.userId;
-  let startDate = `${req.query.start} 00:00:00`;
-  let endDate = `${req.query.end} 23:59:59`;
+  let startDate = req.query.startDate;
+  let endDate = req.query.endDate;
   let sql = `
       SELECT
           DATE_FORMAT(created_at, '%Y-%m') AS date,
@@ -111,40 +111,41 @@ exports.getYearProfitData = (req, res) => {
   const userID = req.user.userId;
   let startDate = req.query.startDate;
   let endDate = req.query.endDate;
-  let sql = `
-    SELECT 
-      DATE_FORMAT(finished_at, '%Y-%m') AS monthData,
-      SUM(od_price) AS profit
-    FROM
-      cms_order
-    WHERE
-      artist_id = ?
-      AND finished_at >= ? AND finished_at <= ?
-      AND od_status = 'finished'
-    GROUP BY 
-      monthData,profit
-  `;
-  
-  
+  console.log(userID);
+  console.log(startDate);
+  console.log(endDate);
   // let sql = `
   //   SELECT 
   //     DATE_FORMAT(finished_at, '%Y-%m') AS monthData,
-  //     SUM(od_price + od_edit_amount_price) AS profit
+  //     SUM(od_price) AS profit
   //   FROM
   //     cms_order
   //   WHERE
   //     artist_id = ?
   //     AND finished_at >= ? AND finished_at <= ?
-  //     AND od_status = 'finished'
   //   GROUP BY 
-  //     monthData
+  //     monthData,profit
   // `;
+  
+  
+  let sql = `
+    SELECT 
+      DATE_FORMAT(finished_at, '%Y-%m') AS monthData,
+      SUM(od_price + od_edit_amount_price) AS profit
+    FROM
+      cms_order
+    WHERE
+      artist_id = ?
+      AND finished_at >= ? AND finished_at <= ?
+    GROUP BY 
+      monthData
+  `;
 
   dbConn.query(sql, [userID, startDate, endDate], (error, results) => {
     if (error) {
       return res.status(500).json({ error: 'Error occurred' });
     }
-    // console.log(results);
+    console.log(results);
     return res.status(200).json({ results, message: 'Success' });
   });
 }
@@ -164,7 +165,6 @@ exports.getProfitOutOfYear = (req, res) => {
   //   WHERE
   //     artist_id = ?
   //     AND finished_at >= ? AND finished_at <= ?
-  //     AND od_status = 'finished'
   //   GROUP BY 
   //     monthData,profit
   // `;
@@ -177,7 +177,6 @@ exports.getProfitOutOfYear = (req, res) => {
     WHERE
       artist_id = ?
       AND finished_at >= ? AND finished_at <= ?
-      AND od_status = 'finished'
     GROUP BY 
       monthData
   `;
@@ -198,18 +197,23 @@ exports.getTopCommission = (req, res) => {
   //   FROM cms_order o 
   //   JOIN users u ON o.customer_id = u.id
   //   JOIN commission c ON o.cms_id = c.cms_id
-  //   WHERE artist_id = ? AND od_status = "finished"
+  //   WHERE artist_id = ?
   //   GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img,profit
   //   ORDER BY profit DESC
   //   LIMIT 5 
   // `
   const sql = `
-    SELECT c.cms_id, c.cms_name, u.id, u.urs_profile_img, SUM(o.od_price + o.od_edit_amount_price) as profit
+    SELECT 
+      c.cms_id, c.cms_name, 
+      u.id, u.urs_profile_img, 
+      SUM(o.od_price + o.od_edit_amount_price) as profit
     FROM cms_order o 
     JOIN users u ON o.customer_id = u.id
     JOIN commission c ON o.cms_id = c.cms_id
     WHERE artist_id = ? AND finished_at IS NOT NULL
-    GROUP BY c.cms_id, c.cms_name, u.id, u.urs_profile_img
+    GROUP BY 
+      c.cms_id, c.cms_name, 
+      u.id, u.urs_profile_img
     ORDER BY profit DESC
     LIMIT 5 
   `
@@ -249,11 +253,11 @@ exports.getTopCustomer = (req, res) => {
     SELECT 
       u.id, u.urs_profile_img, u.urs_name,
       COUNT(*) AS order_count,
-      o.od_price AS profit
+      SUM(o.od_price + o.od_edit_amount_price) as profit
     FROM cms_order o 
     JOIN users u ON o.customer_id = u.id
     WHERE artist_id = ? AND finished_at IS NOT NULL
-    GROUP BY u.id, u.urs_profile_img, u.urs_name,profit
+    GROUP BY u.id, u.urs_profile_img, u.urs_name
     ORDER BY profit DESC
     LIMIT 5 
   `
@@ -315,9 +319,9 @@ exports.getCountOrder = (req, res) => {
     SELECT 
       COUNT(*) AS order_count 
     FROM cms_order
-    WHERE artist_id = ? AND od_status = ?
+    WHERE artist_id = ?
   `
-  dbConn.query(sql, [userID, "finished"], function(error, results){
+  dbConn.query(sql, [userID], function(error, results){
     if (error) {
       console.log(error);
       return res.status(500);

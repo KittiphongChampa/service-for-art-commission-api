@@ -1,4 +1,5 @@
 let express = require("express");
+
 let router = express.Router();
 const signinController = require("../controllers/signinController");
 const userDataController = require("../controllers/userDataController");
@@ -15,6 +16,7 @@ const artistDashboardController = require("../controllers/artistDashboardControl
 const notificationController = require("../controllers/notificationController");
 
 const auth = require("../middleware/auth");
+
 
 //test
 router.get("/user", signinController.user);
@@ -44,6 +46,7 @@ router.patch("/cover_color/update", auth.verifyToken, profileController.update_c
 router.put("/profile_img/update", auth.verifyToken, profileController.update_profile_img);
 router.patch("/bank/update", auth.verifyToken, profileController.update_bank);
 router.put("/delete_account", auth.verifyToken, profileController.delete_account);
+router.get("/review/all", auth.verifyToken, profileController.getAllReview);
 
 //viewprofileController
 router.get("/profile/:id", auth.verifyToken, viewprofileController.viewProfile);
@@ -52,7 +55,8 @@ router.get("/profile_notlogin/:id", viewprofileController.viewProfile_notlogin);
 router.post("/follow", auth.verifyToken, viewprofileController.follow);
 router.delete("/unfollow/:id", auth.verifyToken, viewprofileController.unfollow);
 router.get("/userCommission/:id", viewprofileController.userCommission);
-router.get("/get/your/review/:id", viewprofileController.getYourReview);
+router.get("/userGallery/:id", viewprofileController.userGallerry);
+router.get("/userReview/all/:id", viewprofileController.getYourReview);
 
 //chat
 router.get("/index", auth.verifyToken, chatController.index);
@@ -61,12 +65,14 @@ router.get("/allchat", auth.verifyToken, chatController.allchat);
 router.post("/messages/getmsg", chatController.getMessages);
 router.post("/messages/addmsg", chatController.addMessages);
 
+router.get("/testAllchat", chatController.testAllchat);
+
 //commission
 router.post("/commission/add", auth.verifyToken, cmsController.addCommission);
 router.patch("/commission/update/:id", auth.verifyToken, cmsController.updateCommission);
 router.patch("/commission/delete/:id", cmsController.deleteCommission);
 router.patch("/changestatus/:id", cmsController.manageStatusCms);
-
+router.get("/getbank", auth.verifyToken, cmsController.getBank);
 
 //indexCommissionController
 router.get("/latestCommission", cmsController.latestCommission);
@@ -78,7 +84,6 @@ router.get("/getCommission", cmsController.getCommission)
 router.get("/getCommission/Ifollow", cmsController.getCommissionIfollow)
 
 router.get("/get/queue/:id", cmsController.getQueueInfo)
-
 
 
 //galleryController
@@ -117,12 +122,15 @@ router.get("/all-id-admin", adminController.alladminIds);//ตอนนี้ไ
 
 
 //admin-noti
-router.post("/admin/noti/add", notificationController.addNotiArtwork);
+router.post("/admin/noti/add", notificationController.addNotiAdmin);
 router.get("/admin/noti/getmsg", notificationController.getAdminNoti);
+router.post("/admin/delete/work/noti", notificationController.AdminDeleteWorkNoti);
 
 //user-noti
 router.get("/noti/getmsg", auth.verifyToken, notificationController.getNoti)
 router.post("/noti/order/add", notificationController.notiAdd);
+router.post("/noti/progress/add", notificationController.notiProgress);
+router.post("/noti/progress/edit", notificationController.notiProgressEdit);
 router.put("/noti/readed", notificationController.notiReaded)
 
 
@@ -130,6 +138,7 @@ router.put("/noti/readed", notificationController.notiReaded)
 router.get("/getYearData", adminController.getYearData);
 router.get("/getOutOfYearData", adminController.getOutOfYearData);
 router.get("/getdataPieChart", adminController.dataPieChart );
+router.get("/get/artist/ranking", adminController.artistRank );
 
 //adminManageCms
 router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
@@ -159,6 +168,8 @@ router.get("/getAritisIFollow", indexController.ArtistIFollow);
 router.get("/getTopic", indexController.getTopic);
 router.get("/all/faq", indexController.getFaq)
 
+router.get("/artist/top", indexController.topArtist)
+
 router.get("/search", indexController.search)
 
 //reportController
@@ -172,6 +183,7 @@ router.post("/report/delete/:id", auth.verifyToken, auth.adminOnly, reportContro
 
 router.post("/report/artwork/:id", auth.verifyToken, reportController.reportArtwork);
 router.post("/report/commission/:id", auth.verifyToken, reportController.reportCommission);
+router.post("/report/order/:id", auth.verifyToken, reportController.reportOrder);
 
 //orderController
 router.post("/order/add", auth.verifyToken, orderController.user_addOrder);
@@ -192,9 +204,11 @@ router.post("/finishorder", orderController.finishOrder);
 router.post("/cancelorder", orderController.cancelOrder);
 router.post("/setdeadline", orderController.setDeadline);
 router.post("/cancelslip", orderController.cancelSlip);
-router.get("/get/cms/review/:id", orderController.getCmsReview)
+router.get("/get/cms/review/:id", orderController.getCmsReview);
+router.get("/get/cms/allreview/:id", orderController.getCmsAllReview);
 router.post("/final-images/add", orderController.finalImageAdd);
 
+router.get("/get/reported/:id", orderController.getReportStatus);
 
 
 router.post("/upload-slip", orderController.postSlipfiles )

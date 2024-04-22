@@ -81,13 +81,23 @@ let bangkokTime = date.toLocaleString("en-US", options);
 exports.allReport = (req, res) => {
     const sql = `
         SELECT 
-            rp.sendrp_id, rp.sendrp_header, rp.sendrp_detail, rp.usr_reporter_id ,rp.usr_reported_id, rp.artw_id, rp.cms_id, rp.od_id, rp.created_at,
-            u.id, u.urs_name as reporter_name,
-            u2.id, u2.urs_name as reported_name
+            rp.sendrp_id, 
+            rp.sendrp_header, 
+            rp.sendrp_detail, 
+            rp.usr_reporter_id,
+            rp.usr_reported_id, 
+            rp.artw_id, 
+            rp.cms_id, 
+            rp.od_id, 
+            rp.status,
+            rp.created_at,
+            u.id, 
+            u.urs_name as reporter_name,
+            u2.id, 
+            u2.urs_name as reported_name
         FROM send_report rp
         JOIN users u ON rp.usr_reporter_id = u.id
         JOIN users u2 ON rp.usr_reported_id = u2.id
-        WHERE rp.status IS NULL 
         ORDER BY rp.created_at DESC;
     `
     dbConn.query(sql, function(error, results){
@@ -113,8 +123,8 @@ exports.allReport = (req, res) => {
                 text = 'Artwork';
             } else if (item.artw_id === null && item.cms_id !== null) {
                 text = 'Commission';
-            } else if (item.od_id === !null) {
-                text = 'Order'
+            } else if (item.od_id !== null) {
+                text = 'Order';
             }
             return {...item, text}
         })
@@ -128,11 +138,11 @@ exports.reportDetail = async(req, res) => {
     const reportId = req.params.id
     const sql = `
         SELECT 
-            send_report.sendrp_id, send_report.sendrp_header, send_report.sendrp_detail, send_report.sendrp_email, send_report.sendrp_link, send_report.created_at, send_report.cms_id, send_report.artw_id,
-            users.id, users.urs_name, users.urs_profile_img
-        FROM send_report 
-        JOIN users ON users.id = send_report.usr_reporter_id
-        WHERE sendrp_id = ?
+            rp.sendrp_id, rp.sendrp_header, rp.sendrp_detail, rp.sendrp_email, rp.sendrp_link, rp.created_at, rp.cms_id, rp.artw_id, rp.od_id, rp.status,
+            u.id, u.urs_name, u.urs_profile_img
+        FROM send_report rp
+        JOIN users u ON u.id = rp.usr_reporter_id
+        WHERE rp.sendrp_id = ?
     `
 
     dbConn.query(sql, [reportId], function(error, results) {
@@ -201,7 +211,7 @@ exports.reportDetail = async(req, res) => {
                     // console.log("relatedTo : ", relatedTo);
                     // console.log("results (ข้อมูลของการ report และ ข้อมูลของผู้แจ้ง) : ",results);
                     // console.log("response (ข้อมูลของ cms หรือ artwork และ นักวาด) : ",response);
-                    return res.status(200).json({reportDetail : results, data: response, relatedTo});
+                    return res.status(200).json({reportDetail : results, data: response, relatedTo, type : "งานวาด"});
                 })
             })
 
@@ -270,8 +280,54 @@ exports.reportDetail = async(req, res) => {
                     // console.log("relatedTo : ", relatedTo);
                     // console.log("results (ข้อมูลของการ report) : ",results);
                     // console.log("response (ข้อมูลของ cms หรือ artwork และ นักวาด) : ",response);
-                    return res.status(200).json({reportDetail : results, data: response, relatedTo});
+                    return res.status(200).json({reportDetail : results, data: response, relatedTo, type : "คอมมิชชัน"});
                 })
+            })
+        } else if (results[0].od_id !== null) {
+            const sql_order_report = `
+                SELECT 
+                    rp.created_at,
+                    img.image_name, 
+                    u.id, u.urs_name, u.urs_profile_img 
+                FROM send_report rp
+                JOIN report_img img ON rp.sendrp_id = img.rp_id
+                JOIN users u ON rp.usr_reported_id = u.id
+                WHERE rp.od_id = ?
+            `
+            dbConn.query(sql_order_report, [results[0].od_id], function(error, result){
+                if (error) {
+                    console.log(error);
+                }
+
+                const reportImgData = result[0];
+                const response = {
+                    work: {
+                        created_at: reportImgData.created_at,
+                    },
+                    artist: {
+                        artistId: reportImgData.id,
+                        artistName: reportImgData.urs_name,
+                        artistProfile: reportImgData.urs_profile_img
+                    },
+                };
+
+
+                const uniqueImages= [];
+                const uniqueImagesIds = new Set();
+
+                result.forEach((item) => {
+                    const image_name = item.image_name;
+                    if (!uniqueImagesIds.has(image_name)) {
+                        uniqueImagesIds.add(image_name);
+                        uniqueImages.push(item);
+                    }
+                })
+
+                response.images = uniqueImages.map((item) => ({
+                    ex_img_path: item.image_name,
+                }));
+
+                return res.status(200).json({reportDetail : results, data: response, type : "ออเดอร์"});
             })
         }
     })
@@ -329,89 +385,138 @@ exports.allDeletedReport = (req, res) => {
 exports.reportArtwork = (req, res) => {
     const myId = req.user.userId;
     const artw_id = req.params.id;
-    const { rpheader, rpdetail, rplink, rpemail} = req.body;
+    const { rpheader, rpdetail, rplink, rpemail, usr_reported_id} = req.body;
     if (rplink == undefined) {
-        dbConn.query(`SELECT usr_id FROM artwork WHERE artw_id=?`,[artw_id],function(error, results){
-            if (error) {
-                console.log(error);
-                return res.status(500).json({error})
+        dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
+        [rpheader, rpdetail, rpemail, myId, usr_reported_id, artw_id],
+        function(err, result){
+            if (err) {
+                console.log(err);
+                return res.status(500).json({err})
             }
-            let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, artw_id],
-            function(err, result){
-                if (err) {
-                    console.log(error);
-                    return res.status(500).json({error})
-                }
-                const reportId = result.insertId;
-                return res.status(200).json({status:'ok', reportId})
-            })
+            const reportId = result.insertId;
+            return res.status(200).json({status:'ok', reportId})
         })
     } else {
-        dbConn.query(`SELECT usr_id FROM artwork WHERE artw_id=?`,[artw_id],function(error, results){
+        dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
+        [rpheader, rpdetail, rpemail, rplink, myId, usr_reported_id, artw_id],
+        function(error, result){
             if (error) {
                 console.log(error);
                 return res.status(500).json({error})
             }
-            const usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, artw_id=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, artw_id],
-            function(error, result){
-                if (error) {
-                    console.log(error);
-                    return res.status(500).json({error})
-                }
-                const reportId = result.insertId;
-                return res.status(200).json({status:'ok', reportId})
-            })
+            const reportId = result.insertId;
+            return res.status(200).json({status:'ok', reportId})
         })
     }
-}
+};
 
 //post report commission
 exports.reportCommission = (req, res) => {
     const myId = req.user.userId;
     const cms_id = req.params.id;
-    const {rpheader, rpdetail, rplink, rpemail} = req.body;
+    const {rpheader, rpdetail, rplink, rpemail, usr_reported_id} = req.body;
     if (rplink == undefined) {
-        dbConn.query(`SELECT usr_id FROM commission WHERE cms_id=?`,[cms_id],function(error, results){
-            if (error) {
-                console.log(error);
-                return res.status(500).json({error})
+        dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
+        [rpheader, rpdetail, rpemail, myId, usr_reported_id, cms_id],
+        function(err, result){
+            if (err) {
+                console.log(err);
+                return res.status(500).json({err})
             }
-            let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
-            [rpheader, rpdetail, rpemail, myId, usr_id, cms_id],
-            function(err, result){
-                if (err) {
-                    console.log(error);
-                    return res.status(500).json({error})
-                }
-                const reportId = result.insertId;
-                return res.status(200).json({status:'ok', reportId})
-            })
+            const reportId = result.insertId;
+            return res.status(200).json({status:'ok', reportId})
         })
     } else {
-        dbConn.query(`SELECT usr_id FROM commission WHERE cms_id=?`,[cms_id],function(error, results){
-            if (error) {
-                console.log(error);
-                return res.status(500).json({error})
+        dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
+        [rpheader, rpdetail, rpemail, rplink, myId, usr_reported_id, cms_id],
+        function(err, result){
+            if (err) {
+                console.log(err);
+                return res.status(500).json({err})
             }
-            let usr_id = results[0].usr_id;
-            dbConn.query('INSERT INTO send_report SET sendrp_header=?, sendrp_detail=?, sendrp_email=?, sendrp_link=?, usr_reporter_id=?, usr_reported_id=?, cms_id=?',
-            [rpheader, rpdetail, rpemail, rplink, myId, usr_id, cms_id],
-            function(err, result){
-                if (err) {
-                    console.log(error);
-                    return res.status(500).json({error})
-                }
-                const reportId = result.insertId;
-                return res.status(200).json({status:'ok', reportId})
-            })
+            const reportId = result.insertId;
+            return res.status(200).json({status:'ok', reportId})
         })
     }
-}
+};
+
+exports.reportOrder = async (req, res) => {
+    try {
+        const myId = req.user.userId;
+        const od_id = req.params.id;
+        
+        const { rpheader, rpdetail, rpemail, usr_reported_id } = req.body;
+        const image_files = Array.isArray(req.files.image_file) ? req.files.image_file : [req.files.image_file];
+        if (!image_files || image_files.length === 0) {
+            return res.status(400).json({ error: "No files uploaded" });
+        }
+
+
+        // Insert send_report data only once
+        const sendReportInsertQuery = `
+            INSERT INTO send_report (sendrp_header, sendrp_detail, sendrp_email, usr_reporter_id, usr_reported_id, od_id)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        const sendReportInsertValues = [rpheader, rpdetail, rpemail, myId, usr_reported_id, od_id];
+
+        const sendReportResult = await new Promise((resolve, reject) => {
+            dbConn.query(sendReportInsertQuery, sendReportInsertValues, (error, results) => {
+                if (error) {
+                    console.log(error);
+                    reject(error);
+                } else {
+                    resolve(results);
+                }
+            });
+        });
+
+        const reportId = sendReportResult.insertId;
+
+        for (const file of image_files) {
+            const filename_random = randomstring.generate(10) + '.jpg';
+            const image_report = `${req.protocol}://${req.get("host")}/images_report/${filename_random}`;
+
+            await new Promise((resolve, reject) => {
+                file.mv(`./public/images_report/${filename_random}`, async err => {
+                    if (err) {
+                        console.log(err);
+                        reject(err);
+                    } else {
+                        console.log('File saved successfully:', filename_random);
+
+                        const sql = `
+                            INSERT INTO report_img (rp_id, image_name)
+                            VALUES (?, ?)
+                        `;
+                        const values = [reportId, image_report];
+
+                        try {
+                            await new Promise((resolve, reject) => {
+                                dbConn.query(sql, values, (err, result) => {
+                                    if (err) {
+                                        console.log(err);
+                                        reject(err);
+                                    } else {
+                                        resolve(result);
+                                    }
+                                });
+                            });
+                            resolve();
+                        } catch (err) {
+                            reject(err);
+                        }
+                    }
+                });
+            });
+        }
+
+        return res.status(200).json({ status: 'ok', reportId });
+    } catch (error) {
+        console.log("การทำงานของ reportOrder ไม่สำเร็จ", error);
+        return res.status(500).json({ error: "Internal Server Error" });
+    }
+};
 
 //approve action report
 exports.approveReport = (req, res) => {
@@ -475,7 +580,32 @@ exports.deleteReport = (req, res) => {
                 })
             })
         } else if (results[0].artw_id === null && results[0].cms_id === null && results[0].od_id !== null) {
-            console.log('ลบ cms นั้น หรือว่า');
+            const od_id = results[0].od_id;
+            dbConn.query(`UPDATE send_report SET status=? WHERE od_id = ?`,
+            [status, od_id], function(error, result){
+                if (error) {
+                    console.log(error);
+                }
+                const selectCmsId = `
+                    SELECT cms_id FROM cms_order WHERE od_id = ?
+                `
+                const cmsSQL = `
+                    UPDATE commission SET deleted_at=?, deleted_by=?, delete_reason=? WHERE cms_id=?
+                `
+                dbConn.query(selectCmsId, [od_id], function(error, findCmsId) {
+                    if (error) {
+                        console.log(error);
+                    }
+                    dbConn.query(cmsSQL,[date, adminId, reason, findCmsId[0].cms_id], function(error, resul) {
+                        if (error) {
+                            console.log(error);
+                        }
+                        return res.status(200).json({status: "ok"})
+                    })
+
+                })
+      
+            })
         }
     })
 }

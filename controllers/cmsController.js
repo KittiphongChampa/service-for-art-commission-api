@@ -205,7 +205,6 @@ exports.addCommission = (req, res) => {
               userId,
             );
           }
-          console.log();
         } else {
           insertPackage(
             [package_name, package_detail, price, duration, edits],
@@ -226,11 +225,7 @@ exports.addCommission = (req, res) => {
         if (file.length >= 2) {
           console.log('2 ไฟล์');
           file.forEach((file) => {
-            const filename_random =
-              __dirname.split("controllers")[0] +
-              '/public/images_cms/' +
-              randomstring.generate(50) +
-              ".jpg";
+            const filename_random = __dirname.split("controllers")[0] + '/public/images_cms/' + randomstring.generate(50) + ".jpg";
             while (fs.existsSync(filename_random)) {
               filename_random =
                 __dirname.split("controllers")[0] +
@@ -301,7 +296,7 @@ exports.addCommission = (req, res) => {
             });
         
             // Send the information back to React
-            res.json({ status: "ok", exampleImages: exampleImageInfos });
+            res.json({ status: "ok", exampleImages: exampleImageInfos, commissionId });
           })
           .catch((error) => {
             console.error('เกิดข้อผิดพลาดในการดำเนินการ: ', error);
@@ -323,8 +318,8 @@ exports.latestCommission = (req, res) => {
         commission.cms_id, 
         commission.cms_name, 
         commission.cms_desc, 
-        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
         commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
         example_img.ex_img_path, 
         example_img.status,
         users.id, 
@@ -344,11 +339,14 @@ exports.latestCommission = (req, res) => {
         cms_order ON commission.cms_id = cms_order.cms_id 
     WHERE 
         commission.deleted_at IS NULL 
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
+        AND commission.cms_status = "open"
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
         )
+
     GROUP BY 
         commission.cms_id, 
         commission.cms_name, 
@@ -364,7 +362,6 @@ exports.latestCommission = (req, res) => {
     ORDER BY 
         commission.created_at DESC 
     LIMIT 15;
-
     `;
 
   dbConn.query(query, function (error, results) {
@@ -434,50 +431,53 @@ exports.artistCommission = (req, res) => {
                   cms_order o ON c.cms_id = o.cms_id 
               WHERE 
                   c.usr_id IN (?) 
-                  AND img.status = "passed" 
                   AND c.deleted_at IS NULL 
-                  AND c.deleted_by IS NULL
+                  AND (c.cms_status != "similar" OR c.cms_status IS NULL)
+                  AND c.cms_id IN (
+                    SELECT cms_id
+                    FROM example_img
+                    WHERE status IS NOT NULL
+                  )
               GROUP BY
                   c.cms_id, c.cms_name, c.cms_desc, c.cms_status, c.cms_all_review,
                   img.ex_img_path, img.status, u.id, u.urs_name, p.pkg_id, p.pkg_min_price
               ORDER BY 
                   c.created_at DESC 
               LIMIT 15;
-
           `;
-            } else {
-              return res.status(200).json({ status: "ok", commissions: 'คุณไม่มีนักวาดที่ติดตาม' });
-            }
+          } else {
+            return res.status(200).json({ status: "ok", commissions: 'คุณไม่มีนักวาดที่ติดตาม' });
           }
-          dbConn.query(query, [myFollowings], function (error, results) {
-            if (error) {
-              console.log(error);
-              return res.status(500).json({ status: "error", message: "Database error" });
-            }
-            // console.log(results);
+        }
+        dbConn.query(query, [myFollowings], function (error, results) {
+          if (error) {
+            console.log(error);
+            return res.status(500).json({ status: "error", message: "Database error" });
+          }
+          // console.log(results);
 
-            // ตอนนี้คุณมีผลลัพธ์จากการค้นหา commission ของผู้ที่ฉันกำลังติดตาม
-            const uniqueCmsIds = new Set();
-            const uniqueResults = [];
-          
-            results.forEach((row) => {
-              const cmsId = row.cms_id;
-              if (!uniqueCmsIds.has(cmsId)) {
-                uniqueCmsIds.add(cmsId);
-                uniqueResults.push(row);
-              } else {
-                const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
-                if (row.pkg_min_price < existingResult.pkg_min_price) {
-                  // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
-                  // ให้อัพเดทข้อมูล
-                  Object.assign(existingResult, row);
-                }
+          // ตอนนี้คุณมีผลลัพธ์จากการค้นหา commission ของผู้ที่ฉันกำลังติดตาม
+          const uniqueCmsIds = new Set();
+          const uniqueResults = [];
+        
+          results.forEach((row) => {
+            const cmsId = row.cms_id;
+            if (!uniqueCmsIds.has(cmsId)) {
+              uniqueCmsIds.add(cmsId);
+              uniqueResults.push(row);
+            } else {
+              const existingResult = uniqueResults.find((item) => item.cms_id === cmsId);
+              if (row.pkg_min_price < existingResult.pkg_min_price) {
+                // หาก pkg_min_price น้อยกว่าในแถวที่มีอยู่แล้ว
+                // ให้อัพเดทข้อมูล
+                Object.assign(existingResult, row);
               }
-            });
-            // console.log(uniqueResults);
-            // console.log(results);
-            return res.status(200).json({ status: "ok", commissions: uniqueResults });
+            }
           });
+          // console.log(uniqueResults);
+          // console.log(results);
+          return res.status(200).json({ status: "ok", commissions: uniqueResults });
+        });
         }
       );
     } catch (error) {
@@ -491,14 +491,14 @@ exports.detailCommission = (req, res) => {
   //   SELECT c.cms_id, c.cms_amount_q, COUNT(o.od_id) AS used_slots
   //   FROM commission c
   //   LEFT JOIN cms_order o ON c.cms_id = o.cms_id
-  //   WHERE c.cms_id = ? AND o.od_status = ?
+  //   WHERE c.cms_id = ?
   //   GROUP BY c.cms_id, c.cms_amount_q
   // `
     const cmsID = req.params.id;
     try {
       const query = `
         SELECT 
-          commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_by, commission.delete_reason, commission.cms_status,
+          commission.cms_id, commission.cms_name, commission.cms_desc, commission.cms_amount_q, commission.cms_good_at, commission.cms_bad_at ,commission.cms_all_review, commission.cms_no_talking, commission.cms_all_finish, commission.created_at, commission.usr_id, commission.deleted_at, commission.delete_reason, commission.cms_status, commission.deleted_by,
           example_img.ex_img_id , example_img.ex_img_path, example_img.status,
           package_in_cms.pkg_id, package_in_cms.pkg_name ,package_in_cms.pkg_desc ,package_in_cms.pkg_min_price ,package_in_cms.pkg_duration ,package_in_cms.pkg_edits,
           users.id, users.urs_name, users.urs_profile_img, IFNULL(users.urs_all_review, 0) as all_review, COALESCE(total_reviews, 0) AS total_reviews,
@@ -525,9 +525,6 @@ exports.detailCommission = (req, res) => {
         ) AS order_counts ON users.id = order_counts.artist_id
         WHERE 
           commission.cms_id = ? 
-          AND example_img.status = "passed" 
-          AND commission.deleted_at IS NULL 
-          AND commission.deleted_by IS NULL 
           AND package_in_cms.deleted_at IS NULL
       `;
       
@@ -561,7 +558,9 @@ exports.detailCommission = (req, res) => {
             updated_at: commissionData.updated_at,
             deleted_at: commissionData.deleted_at,
             cms_status: commissionData.cms_status,
-            used_slots: commissionData.used_slots
+            used_slots: commissionData.used_slots,
+            delete_reason: commissionData.delete_reason,
+            deleted_by : commissionData.deleted_by
           },
           artist: {
             artistId: commissionData.usr_id,
@@ -686,14 +685,13 @@ exports.getQueue = (req, res) => {
 
 exports.getQueueData = (req, res) => {
   const cmsId = req.params.id;
-  const od_status = "inprogress";
   const sql = `
     SELECT 
-      o.od_id, o.od_q_number, o.ordered_at,
+      o.od_id, o.ordered_at,
       c.cms_id, c.cms_name,
       pk.pkg_id, pk.pkg_name,
       u.id, u.urs_name,
-      s.step_name
+      IFNULL(s.step_name, "เสร็จสิ้นแล้ว") AS step_name
     FROM cms_order o
     JOIN 
       commission c ON o.cms_id = c.cms_id
@@ -701,20 +699,19 @@ exports.getQueueData = (req, res) => {
       package_in_cms pk ON c.cms_id = pk.cms_id
     JOIN
       users u ON u.id = o.customer_id
-    JOIN 
+    LEFT JOIN 
       cms_steps s ON o.od_current_step_id = s.step_id
     WHERE 
-      c.cms_id = ? AND o.od_status = ?
-    ORDER BY o.od_q_number ASC
+      c.cms_id = ? AND o.od_cancel_by IS NULL
+    ORDER BY o.ordered_at ASC
   `
-  dbConn.query(sql, [cmsId, od_status], function(error, results){
+  dbConn.query(sql, [cmsId], function(error, results){
     if (error) {
       console.log(error);
       return res.status(500).json({ error })
     }
-    const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
+    // const uniqueResults = [...new Set(results.map(JSON.stringify))].map(JSON.parse);
     // console.log(uniqueResults);
-    // console.log(results);
     return res.status(200).json({ status: 'ok', results })
   })
 }
@@ -970,10 +967,11 @@ exports.getCommission = (req, res) => {
     WHERE 
         commission.deleted_at IS NULL
         AND commission.cms_status = "${cmsStatus}"
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
         )
     GROUP BY 
         commission.cms_id, 
@@ -1027,10 +1025,11 @@ exports.getCommission = (req, res) => {
         cms_order ON commission.cms_id = cms_order.cms_id 
     WHERE 
         commission.deleted_at IS NULL
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
         )
     GROUP BY 
         commission.cms_id, 
@@ -1086,10 +1085,11 @@ exports.getCommission = (req, res) => {
           commission.deleted_at IS NULL
           AND commission.cms_status = "${cmsStatus}"
           AND commission_has_topic.tp_id IN (${topicValues})
-          AND commission.cms_id NOT IN (
-              SELECT cms_id
-              FROM example_img
-              WHERE status = 'failed'
+          AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+          AND commission.cms_id IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status IS NOT NULL
           )
       GROUP BY 
           commission.cms_id, 
@@ -1143,10 +1143,11 @@ exports.getCommission = (req, res) => {
       WHERE 
           commission.deleted_at IS NULL
           AND commission_has_topic.tp_id IN (${topicValues})
-          AND commission.cms_id NOT IN (
-              SELECT cms_id
-              FROM example_img
-              WHERE status = 'failed'
+          AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+          AND commission.cms_id IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status IS NOT NULL
           )
       GROUP BY 
           commission.cms_id, 
@@ -1171,15 +1172,19 @@ exports.getCommission = (req, res) => {
       `
     }
   }
+
   dbConn.query(query, function (error, results) {
       
-      if (error) {
-        console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
-        return res.json({ status: "error", message: "status error" });
-      }
-      const uniqueCmsIds = new Set();
-      const uniqueResults = [];
-      results.forEach((row) => {
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+
+    // console.log(results);
+
+    const uniqueCmsIds = new Set();
+    const uniqueResults = [];
+    results.forEach((row) => {
       const cmsId = row.cms_id;
       if (!uniqueCmsIds.has(cmsId)) {
         uniqueCmsIds.add(cmsId);
@@ -1202,10 +1207,9 @@ exports.getCommission = (req, res) => {
 
 exports.getCommissionIfollow = (req, res) => {
   let sortBy = req.query.sortBy || 'ล่าสุด';
-  let IFollowingIDs = req.query.IFollowingIDs || '';
-  let topicValues = req.query.topicValues || null;
+  let IFollowingIDs = req.query.IFollowingIDs || 0;
+  let topicValues = req.query.topicValues || 'null';
   let cmsStatus = req.query.cmsStatus || 'open';
-  // console.log(topicValues);
 
   let query = ``;
 
@@ -1242,10 +1246,11 @@ exports.getCommissionIfollow = (req, res) => {
         commission.deleted_at IS NULL
         AND commission.usr_id IN (${IFollowingIDs})
         AND commission.cms_status = "${cmsStatus}"
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
         )
     GROUP BY 
         commission.cms_id, 
@@ -1299,10 +1304,11 @@ exports.getCommissionIfollow = (req, res) => {
     WHERE 
         commission.deleted_at IS NULL
         AND commission.usr_id IN (${IFollowingIDs})
-        AND commission.cms_id NOT IN (
-            SELECT cms_id
-            FROM example_img
-            WHERE status = 'failed'
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
         )
     GROUP BY 
         commission.cms_id, 
@@ -1359,10 +1365,11 @@ exports.getCommissionIfollow = (req, res) => {
           AND commission.usr_id IN (${IFollowingIDs})
           AND commission.cms_status = "${cmsStatus}"
           AND commission_has_topic.tp_id IN (${topicValues})
-          AND commission.cms_id NOT IN (
-              SELECT cms_id
-              FROM example_img
-              WHERE status = 'failed'
+          AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+          AND commission.cms_id IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status IS NOT NULL
           )
       GROUP BY 
           commission.cms_id, 
@@ -1417,10 +1424,11 @@ exports.getCommissionIfollow = (req, res) => {
           commission.deleted_at IS NULL
           AND commission.usr_id IN (${IFollowingIDs})
           AND commission_has_topic.tp_id IN (${topicValues})
-          AND commission.cms_id NOT IN (
-              SELECT cms_id
-              FROM example_img
-              WHERE status = 'failed'
+          AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+          AND commission.cms_id IN (
+            SELECT cms_id
+            FROM example_img
+            WHERE status IS NOT NULL
           )
       GROUP BY 
           commission.cms_id, 
@@ -1445,6 +1453,7 @@ exports.getCommissionIfollow = (req, res) => {
       `;
     }
   }
+  
   dbConn.query(query, function (error, results) {
     // console.log(results);
     if (error) {
@@ -1501,4 +1510,26 @@ exports.manageStatusCms = (req, res) => {
 
     }
   )
+}
+
+exports.getBank = (req, res) => {
+  const userID = req.user.userId;
+  try {
+    dbConn.query(
+      `SELECT urs_promptpay_number,urs_account_name
+      FROM users
+      WHERE id = ?` ,
+      [userID],
+      function (error, results) {
+        if (error) {
+          console.log(error);
+          res.status(500)
+        }
+        console.log(results);
+        res.status(200).json(results);
+      }
+    );
+  } catch (error) {
+    console.log(error)
+  }
 }

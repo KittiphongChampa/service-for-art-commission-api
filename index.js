@@ -22,16 +22,22 @@ const path = require('path')
 const fs = require('fs');
 const fileUpload  = require('express-fileupload');
 
-// let date = new Date();
-// const formattedTime = date.toISOString().replace('T', ' ').slice(0, 19);
+const formatDateThai = (date) => {
+  const options = {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'Asia/Bangkok'
+  };
 
-// let date = new Date();
-// let options = { timeZone: "Asia/Bangkok" };
-// let bangkokTime = date.toLocaleString("Asia/Bangkok", options);
+  const formatter = new Intl.DateTimeFormat('th-TH', options);
+  return formatter.format(date);
+};
 
-const nDate = new Date().toLocaleString('en-US', {
-  timeZone: 'Asia/Bangkok'
-});
+const nDate = formatDateThai(new Date());
 
 const onlineAdmins = new Map();
 const onlineUsers = new Map(); 
@@ -115,8 +121,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // แจ้งเตือนนักวาดส่งภาพร่าง
-  socket.on('sketchOrder', (data) => {
+  // progress_step
+  socket.on('progress_step', (data) => {
+    if (data.msg == "ภาพร่าง") {
+      data.msg = "ได้ส่งภาพร่าง"
+    } else if (data.msg == "ระบุราคา") {
+      data.msg = "แจ้งเตือนการชำระเงินครั้งที่ 1"
+    } else if (data.msg == "แนบสลิป") {
+      data.msg = "ได้ชำระเงินครั้งที่ 1 แล้ว"
+    } else if (data.msg = "ภาพไฟนัล") {
+      data.msg = "ได้ส่งภาพไฟนัล"
+    } else if (data.msg == "ตรวจสอบใบเสร็จ2") {
+      data.msg = "ให้คะแนนและความคิดเห็น"
+    } else if (data.msg.includes("ภาพ") && data.msg != "ภาพร่าง" && data.msg != "ภาพไฟนัล") {
+      data.msg = "ส่งความคืบหน้างาน"
+    } 
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
@@ -127,8 +146,21 @@ io.on('connection', (socket) => {
     }
   });
 
-  // แจ้งเตือนการจ่ายเงินครั้งที่ 1
-  socket.on('paymentFirsttime', (data) => {
+  // edit_progress
+  socket.on('edit_Progress', (data) => {
+    console.log('edit_Progress', data);
+    if (data.msg == "ภาพร่าง") {
+      data.msg = "แจ้งแก้ไขภาพร่าง"
+    } else if (data.msg == "ตรวจสอบใบเสร็จ") {
+      data.msg = "แจ้งแก้ไขใบเสร็จ"
+    } else if (data.msg.includes("ภาพ") && data.msg != "ภาพร่าง" && data.msg != "ภาพไฟนัล") {
+      data.msg = "แจ้งแก้ไขภาพ"
+    } else if (data.msg == "ภาพไฟนัล") {
+      data.msg = "แจ้งแก้ไขภาพไฟนัล"
+    } else if (data.msg == "ตรวจสอบใบเสร็จ2") {
+      data.msg = "แจ้งแก้ไขใบเสร็จ"
+    }
+    
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
@@ -138,31 +170,6 @@ io.on('connection', (socket) => {
       console.log("ไม่ส่งข้อความ");
     }
   });
-
-  // แจ้งเตือนการจ่ายเงินครั้งที่ 2
-  socket.on('paymentSecondtime', (data) => {
-    const sendUserSocket = onlineUsers.get(data.receiver_id);
-    if (sendUserSocket) {
-      socket.to(sendUserSocket).emit("getNotification",{
-        data: {...data, created_at: nDate, },
-      });
-    } else{
-      console.log("ไม่ส่งข้อความ");
-    }
-  });
-
-  // แจ้งเตือนนักวาดส่งภาพ final
-  socket.on('completeOrder', (data) => {
-    const sendUserSocket = onlineUsers.get(data.receiver_id);
-    if (sendUserSocket) {
-      socket.to(sendUserSocket).emit("getNotification",{
-        data: {...data, created_at: nDate, },
-      });
-    } else{
-      console.log("ไม่ส่งข้อความ");
-    }
-  });
-
 
   // users-artis
   // การจ้างงาน
@@ -179,6 +186,13 @@ io.on('connection', (socket) => {
 
   // แจ้งเตือนเมื่อลูกค้ายอมรับภาพร่าง
   socket.on('acceptsketchOrder', (data) => {
+    console.log('acceptsketchOrder',data);
+    if (data.msg == "ภาพร่าง") {
+      data.msg = 'อนุมัติภาพร่างแล้ว โปรดตั้งราคางาน';
+    } else if (data.msg.includes("ภาพ") && data.msg != "ภาพร่าง") {
+      data.msg = 'อนุมัติภาพความคืบหน้าแล้ว';
+    } 
+    
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
@@ -189,8 +203,12 @@ io.on('connection', (socket) => {
     }
   });
 
-  // แจ้งเตือนการตั้งราคา
-  socket.on('setPriceOrder', (data) => {
+  // แจ้งเตือนเมื่อลูกค้ายอมรับภาพไฟนัล
+  socket.on('acceptfinalOrder', (data) => {
+    console.log('acceptfinalOrder',data);
+    if (data.msg = "ภาพไฟนัล") {
+      data.msg = "แจ้งเตือนการชำระเงินครั้งที่ 2"
+    }
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
@@ -201,32 +219,9 @@ io.on('connection', (socket) => {
     }
   });
 
-  // แจ้งเตือนลูกค้าชำระเงินครั้งที่ 1 แล้ว
-  socket.on('checkPaymentFirst', (data) => {
-    const sendUserSocket = onlineUsers.get(data.receiver_id);
-    if (sendUserSocket) {
-      socket.to(sendUserSocket).emit("getNotification",{
-        data: { ...data,created_at: nDate, },
-      });
-    } else{
-      console.log("ไม่ส่งข้อความ");
-    }
-  });
-
-  // แจ้งเตือนลูกค้าชำระเงินครั้งที่ 2 แล้ว
-  socket.on('checkPaymentSecond', (data) => {
-    const sendUserSocket = onlineUsers.get(data.receiver_id);
-    if (sendUserSocket) {
-      socket.to(sendUserSocket).emit("getNotification",{
-        data: { ...data,created_at: nDate, },
-      });
-    } else{
-      console.log("ไม่ส่งข้อความ");
-    }
-  });
-
+  // แอดมินลบ cms หรือ artwork 
   socket.on("workhasdeletedByadmin", (data) => {
-    console.log(data);
+    console.log("workhasdeletedByadmin",data);
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{
@@ -236,7 +231,6 @@ io.on('connection', (socket) => {
       console.log("ไม่ส่งข้อความ");
     }
   })
-
 
   // admin
   socket.on("reportCommission", (data) => {
@@ -255,19 +249,26 @@ io.on('connection', (socket) => {
     })
   });
 
+  socket.on("reportOrder", (data) => {
+    onlineAdmins.forEach((socketId, adminId) => {
+      socket.to(socketId).emit('getNotificationAdmin',{
+        data: { ...data, created_at: nDate, },
+      })
+    })
+  });
+  
 
 
 });
-
-
-
 
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.json());
 app.use(express.urlencoded({extended: true,}));
-app.use(fileUpload());
+app.use(fileUpload({
+  limits: { fileSize: 10 * 1024 * 1024 },
+}));
 app.use(authRoutes)
 
 

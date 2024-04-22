@@ -47,13 +47,12 @@ exports.user_addOrder = async (req, res) => {
   try {
     const userID = req.user.userId;
     const { cmsID, artistId, pkgId, od_use_for, od_detail, selectedValue } = req.body;
-    const od_status = "inprogress";
 
     const findQueueEmpty = `
       SELECT (c.cms_amount_q - IFNULL(COUNT(o.od_id), 0)) AS available_slots
       FROM commission c
       LEFT JOIN cms_order o ON c.cms_id = o.cms_id
-      WHERE c.cms_id = ? 
+      WHERE c.cms_id = ? AND o.od_cancel_by IS NULL
     `
     dbConn.query(findQueueEmpty, [cmsID], async (error, results) => {
       // console.log(results);
@@ -62,9 +61,9 @@ exports.user_addOrder = async (req, res) => {
         console.log('เกิดข้อผิดพลาด');
         return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาด" });
       }
-      //select เลือก max(คิว)+1
 
       const available_slots = results[0].available_slots;
+
       if (available_slots > 0) {
         dbConn.query(
           `SELECT MAX(od_q_number) AS q
@@ -78,9 +77,9 @@ exports.user_addOrder = async (req, res) => {
             now_q = maxQRes[0].q + 1
           }
           const insertCmsOrder = `
-          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=?, od_status=? ,od_q_number=?, od_tou=?
+          INSERT INTO cms_order SET cms_id=?, customer_id=?, artist_id=?, pkg_id=?, od_use_for=?, od_detail=? ,od_q_number=?, od_tou=?
         `
-          dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, od_status, now_q, selectedValue], async (err, result) => {
+          dbConn.query(insertCmsOrder, [cmsID, userID, artistId, pkgId, od_use_for, od_detail, now_q, selectedValue], async (err, result) => {
             if (err) {
               console.log("เกิดข้อผิดพลาดที่ ERR");
               return res.status(500).json({ status: "error", message: "เกิดข้อผิดพลาดที่ ERR" });
@@ -1087,40 +1086,48 @@ exports.cancelSlip = (req, res) => {
 }
 
 exports.getCmsReview = (req, res) => {
-  const cmsId = req.params.id;
-  console.log('เข้า : ',cmsId);
+  const cmsId = parseInt(req.params.id);
+
   const sql = `
-  SELECT 
-    u.id, u.urs_name, u.urs_profile_img,
-    pk.pkg_id, pk.pkg_name, 
-    rw.rw_score, rw.rw_comment
-  FROM 
-    cms_order o
-  JOIN  
-    package_in_cms pk ON pk.pkg_id = o.pkg_id
-  JOIN
-    users u ON u.id = o.customer_id
-  JOIN
-    review rw ON rw.rw_id = o.rw_id
-  WHERE o.cms_id IN (?)
-
+    SELECT 
+      o.cms_id, u.id, u.urs_name, u.urs_profile_img,
+      pk.pkg_id, pk.pkg_name, 
+      rw.rw_score, rw.rw_comment, rw.created_at
+    FROM 
+      cms_order o
+    JOIN  
+      package_in_cms pk ON pk.pkg_id = o.pkg_id
+    JOIN
+      users u ON u.id = o.customer_id
+    JOIN
+      review rw ON rw.rw_id = o.rw_id
+    WHERE o.cms_id IN (?)
   `
 
-  const sql2 = `
-    SELECT
-      rw.rw_id, rw.rw_score, rw.rw_comment
-    FROM
-      review rw
-
-
-  `
-  dbConn.query(sql2, function(error, results) {
+  dbConn.query(sql, [cmsId], function(error, results) {
     if (error) {
       console.log(error);
       return res.status(500).json({error})
     }
-    console.log(results);
     return res.status(200).json(results)
+  })
+}
+
+exports.getCmsAllReview = (req, res) => {
+  const cmsId = parseInt(req.params.id);
+  const sql = `
+    SELECT 
+      cms_all_review
+    FROM 
+      commission
+    WHERE commission.cms_id = ?
+  `
+  dbConn.query(sql, [cmsId], function(error, CmsAllReview){
+    if (error) {
+      return res.status(500).json({error})
+    }
+    const cms_all_review = CmsAllReview[0].cms_all_review;
+    return res.status(200).json(cms_all_review)
   })
 }
 
@@ -1201,6 +1208,25 @@ exports.finalImageAdd = (req, res) => {
     return res.status(200).json({status: "ok", final_img_name, finalId})
 
   })
+}
+
+exports.getReportStatus = (req, res) => {
+  try {
+    const od_id = req.params.id;
+    dbConn.query(`SELECT od_id FROM send_report WHERE od_id = ${od_id}`, function(error, results) {
+      if (error) {
+        console.log(error);
+        res.json({msg : "false"})
+      } else if (results.length >= 1) {
+        res.json({msg : "true"})
+      } else {
+        res.json({msg : "false"})
+      }
+      
+    })
+  } catch (error) {
+    res.json({msg : "false"})
+  }
 }
 
 

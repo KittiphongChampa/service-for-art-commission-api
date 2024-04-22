@@ -24,25 +24,25 @@ exports.viewProfile = (req,res) => {
     const userId = req.params.id;
     const myId = req.user.userId;
     let foundFollower = false;
-    const followerIds = [];
+    const MyFollowerIds = [];
     const IFollowingsIds = [];
     try {
       dbConn.query(
         `SELECT * ,
-      (SELECT COUNT(*)
-        FROM review
-        JOIN cms_order ON review.od_id = cms_order.od_id
-        WHERE users.id = cms_order.artist_id
-      ) AS rw_number,
-      (SELECT COUNT(*)
-        FROM cms_order
-        WHERE users.id = cms_order.artist_id AND finished_at IS NOT NULL
-      ) AS success,
-      (SELECT COUNT(*)
-        FROM cms_order
-        WHERE users.id = cms_order.artist_id AND od_cancel_by IS NOT NULL
-      ) AS cancel
-      FROM users WHERE id=?`,
+        (SELECT COUNT(*)
+          FROM review
+          JOIN cms_order ON review.od_id = cms_order.od_id
+          WHERE users.id = cms_order.artist_id
+        ) AS rw_number,
+        (SELECT COUNT(*)
+          FROM cms_order
+          WHERE users.id = cms_order.artist_id AND finished_at IS NOT NULL
+        ) AS success,
+        (SELECT COUNT(*)
+          FROM cms_order
+          WHERE users.id = cms_order.artist_id AND od_cancel_by IS NOT NULL
+        ) AS cancel
+        FROM users WHERE id=?`,
         // "SELECT * FROM users JOIN follow ON users.id = follow.follower_id",
         [userId],
         function (error, users) {
@@ -55,28 +55,37 @@ exports.viewProfile = (req,res) => {
               function (error, results) {
                 if (error) {
                   return res.json({ status: "error", message: "เข้า error" });
-                }else {     
-                  // let totalFollowers = results.length; //จำนวนผู้ติดตามทั้งหมด
-                  for (let x = 0; x < results.length; x++) {
-                    followerIds.push(results[x].follower_id);//ใครที่ติดตามบ้าง
-                  }
-  
-                  for (let i = 0; i < results.length; i++) {//ลูปเพื่อหาว่ามีใครในผู้ติดตามที่เป็นเราหรือไม่
-                    const follower = results[i];
-                    if (follower.follower_id === myId) {
-                      // มี follower_id เท่ากับ myId
-                      foundFollower = true;
-                      break; // ออกจากลูปหลังพบ follower ครั้งแรก
+                }     
+                for (let x = 0; x < results.length; x++) {
+                  MyFollowerIds.push(results[x].follower_id);//ใครที่ติดตามบ้าง
+                }
+                dbConn.query(
+                  "SELECT * FROM follow WHERE follower_id =? ", [userId],
+                  function (err, result) {
+                    if (error) {
+                      console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
+                    } else {
+                      for (let x = 0; x < result.length; x++) {
+                        IFollowingsIds.push(result[x].following_id);//เราติดตามใครบ้าง
+                      }
+                      for (let i = 0; i < results.length; i++) {//ลูปเพื่อหาว่ามีใครในผู้ติดตามที่เป็นเราหรือไม่
+                        const follower = results[i];
+                        if (follower.follower_id === myId) {
+                          // มี follower_id เท่ากับ myId
+                          foundFollower = true;
+                          break; // ออกจากลูปหลังพบ follower ครั้งแรก
+                        }
+                      }
+                      if (foundFollower) {
+                        return res.json({ status: "ok", users, message: 'follow', MyFollowerIds, IFollowingsIds});
+                        
+                      } else {
+                        return res.json({ status: "ok", users, message: 'no_follow', MyFollowerIds, IFollowingsIds});
+                      }
+          
                     }
                   }
-                  if (foundFollower) {
-                    return res.json({ status: "ok", users, message: 'follow', followerIds});
-                    
-                  } else {
-                    return res.json({ status: "ok", users, message: 'no_follow', followerIds});
-                  }
-  
-                }
+                )  
               }
             )
           }
@@ -89,7 +98,7 @@ exports.viewProfile = (req,res) => {
 
 exports.viewProfile_notlogin = (req, res) => {
   const userId = req.params.id;
-  const followerIds = [];
+  const MyFollowerIds = [];
   const IFollowingsIds = [];
   try {
     dbConn.query(
@@ -108,7 +117,6 @@ exports.viewProfile_notlogin = (req, res) => {
       WHERE users.id = cms_order.artist_id AND od_cancel_by IS NOT NULL
     ) AS cancel
     FROM users WHERE id=?`,
-      // "SELECT * FROM users JOIN follow ON users.id = follow.follower_id",
       [userId],
       function (error, users) {
         if (error) {
@@ -123,11 +131,24 @@ exports.viewProfile_notlogin = (req, res) => {
               }   
               // let totalFollowers = results.length; //จำนวนผู้ติดตามทั้งหมด
               for (let x = 0; x < results.length; x++) {
-                followerIds.push(results[x].follower_id);//ใครที่ติดตามบ้าง
+                MyFollowerIds.push(results[x].follower_id);//ใครที่ติดตามบ้าง
               }
-
-              return res.json({ status: "ok", users, message: 'no_follow', followerIds});
-              
+              dbConn.query(
+                "SELECT * FROM follow WHERE follower_id =? ", [userId],
+                function (err, result) {
+                  if (error) {
+                    console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
+                  } else {
+                    for (let x = 0; x < result.length; x++) {
+                      IFollowingsIds.push(result[x].following_id);//เราติดตามใครบ้าง
+                    }
+                    // ทั้งสองจะ log ออกมาเป็น array ที่มี id แสดง
+                    // console.log(MyFollowerIds);
+                    // console.log(IFollowingsIds);
+                    return res.json({ status: "ok", users, message: 'no_follow', MyFollowerIds, IFollowingsIds });
+                  }
+                }
+              )  
             }
           )
         }
@@ -169,17 +190,53 @@ exports.unfollow = (req,res) => {
     )
 }
 
-exports.userCommission =(req, res) => {
+exports.userCommission = (req, res) => {
   const userID = req.params.id;
   const query = `
-    SELECT commission.cms_id, commission.cms_name, commission.cms_desc, 
-    example_img.ex_img_path, users.id, users.urs_name,
-    package_in_cms.pkg_id, package_in_cms.pkg_min_price
-    FROM commission
-    JOIN example_img ON commission.cms_id = example_img.cms_id
-    JOIN users ON commission.usr_id = users.id
-    JOIN package_in_cms ON commission.cms_id = package_in_cms.cms_id
-    WHERE commission.usr_id IN (?) AND commission.deleted_at IS NULL
+    SELECT 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      commission.cms_status,
+      IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price,
+      COUNT(cms_order.rw_id) AS total_reviews
+    FROM 
+      commission
+    JOIN 
+      example_img ON commission.cms_id = example_img.cms_id
+    JOIN 
+      users ON commission.usr_id = users.id
+    JOIN 
+      package_in_cms ON commission.cms_id = package_in_cms.cms_id
+    LEFT JOIN
+      cms_order ON commission.cms_id = cms_order.cms_id 
+    WHERE 
+      commission.usr_id IN (?) 
+      AND commission.deleted_at IS NULL
+      AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+      AND commission.cms_id IN (
+        SELECT cms_id
+        FROM example_img
+        WHERE status IS NOT NULL
+      )
+    GROUP BY 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      commission.cms_all_review,
+      commission.cms_status,
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price
     ORDER BY commission.created_at DESC
   `;
   
@@ -212,29 +269,59 @@ exports.userCommission =(req, res) => {
   });
 }
 
+exports.userGallerry = (req, res) => {
+  const userID = req.params.id;
+  const query = `
+    SELECT 
+      artwork.artw_id, artwork.artw_desc, artwork.ex_img_id,
+      example_img.ex_img_path, example_img.ex_img_name, artwork.created_at
+    FROM 
+      artwork
+    JOIN 
+      example_img ON artwork.ex_img_id = example_img.ex_img_id
+    WHERE 
+      artwork.deleted_at IS NULL AND artwork.usr_id = ?
+    UNION
+    SELECT
+      example_img.artw2_id, artwork.artw_desc, artwork.ex_img_id,
+      example_img.ex_img_path, example_img.ex_img_name, example_img.created_at
+    FROM
+      example_img
+    JOIN
+      artwork ON example_img.artw2_id = artwork.artw_id
+    WHERE
+      example_img.cms_id IS NULL AND artwork.deleted_at IS NULL AND example_img.usr_id = ?
+    ORDER BY created_at DESC
+  `
+  dbConn.query(query, [userID, userID], function (error, results) {
+    if (error) {
+      console.log(error); // แสดงข้อผิดพลาดใน console เพื่อตรวจสอบ
+      return res.json({ status: "error", message: "status error" });
+    }
+    res.status(200).json({myGallery : results})
+  })
+}
+
 exports.getYourReview = (req, res) => {
   const userId = req.params.id
   const sql = `
-    SELECT 
-      u.id, u.urs_name, u.urs_profile_img,
-      o.pkg_id, o.pkg_name, 
-      rw.rw_score, rw.rw_comment,
-    FROM 
+    SELECT
+      o.cms_id, u.id, u.urs_name, u.urs_profile_img,
+      rw.rw_score, rw.rw_comment, rw.created_at
+    FROM
       cms_order o
-    JOIN  
-      package_in_cms pk ON pk.pkg_id = o.pkg_id
     JOIN
       users u ON u.id = o.customer_id
     JOIN
       review rw ON rw.rw_id = o.rw_id
-    WHERE o.artist_id IN (?)
+    WHERE
+      o.artist_id IN (${userId})
   `
-  dbConn.query(sql, [userId], function(error, results) {
+  dbConn.query(sql, function(error, results){
     if (error) {
       console.log(error);
       return res.status(500).json({error})
     }
-    console.log(results);
     return res.status(200).json(results)
   })
 };

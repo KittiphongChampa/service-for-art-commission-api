@@ -9,13 +9,6 @@ const nodemailer = require("nodemailer");
 
 const mysql = require('mysql2')
 const dbConn = mysql.createConnection(process.env.DATABASE_URL)
-// let dbConn = mysql.createConnection({
-//     host: "192.185.184.112",
-//     user: "itweb176_itweb1766",
-//     password: "XPWVySBR@a+H",
-//     database: "itweb176_projectdb",
-// });
-// dbConn.connect();
 
 let date = new Date();
 let options = { timeZone: "Asia/Bangkok" };
@@ -23,7 +16,6 @@ let bangkokTime = date.toLocaleString("en-US", options);
 
 exports.admin =(req, res) => {
     const adminId = req.user.adminId;
-    console.log(adminId);
     // const role = req.admin.role;
     try {
       dbConn.query(
@@ -76,7 +68,6 @@ exports.allAdmin = (req, res) => {
           if (error) {
             return res.json({ status: "error", message: error });
           } else {
-            console.log(admins);
             return res.json({ status: "ok", admins,});
           }
         }
@@ -857,7 +848,7 @@ exports.alladminIds = (req, res) => {
   })
 }
 
-exports.delete_User =(req,res) => {
+exports.delete_User = (req,res) => {
   const userId = req.params.id;
   const adminId = req.user.adminId;
   const banReason = req.body.banReason;
@@ -883,3 +874,27 @@ exports.delete_User =(req,res) => {
     });
   }
 };
+
+exports.artistRank = (req,res) => {
+  const sql = `
+    SELECT
+      u.id, u.urs_profile_img, u.urs_name, u.urs_all_review,
+      COUNT(o.rw_id) AS review_count,
+      COUNT(*) AS order_count,
+      SUM(o.od_price + o.od_edit_amount_price) as profit
+    FROM cms_order o
+    JOIN users u ON o.artist_id = u.id
+    WHERE finished_at IS NOT NULL
+    GROUP BY u.id, u.urs_profile_img, u.urs_name
+    ORDER BY profit DESC
+  `
+ 
+  dbConn.query(sql, function(error, results) {
+    if (error) {
+      console.log(error);
+      res.status(500).json({error})
+    }
+    console.log(results);
+    return res.status(200).json({results})
+  })
+}

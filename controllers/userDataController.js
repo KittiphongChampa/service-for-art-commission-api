@@ -29,10 +29,13 @@ exports.index = (req, res) => {
         "SELECT * FROM users WHERE id=?",
         [userId],
         function (error, users) {
-          if (userId === 'undefined') {
-            return res.json({ status: "ok_butnotuser" });
-          } else if (users[0].id !== userId) {
-            return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
+          // if (userId === 'undefined') {
+          //   return res.json({ status: "ok_butnotuser" });
+          // } else if (users[0].id !== userId) {
+          //   return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
+          // }
+          if (error) {
+            res.status(500).json({status: error})
           }
           // const urs_token = decrypt(users[0].urs_token);
           return res.json({ status: "ok", users, type: 'user'});
@@ -46,18 +49,52 @@ exports.index = (req, res) => {
 exports.myCommission = (req, res) => {
     const myId = req.user.userId;
     const query = `
-      SELECT commission.cms_id, commission.cms_name, commission.cms_desc, example_img.ex_img_path, users.id, users.urs_name
-      FROM commission
-      JOIN example_img ON commission.cms_id = example_img.cms_id
-      JOIN users ON commission.usr_id = users.id
-      WHERE commission.usr_id IN (?) AND commission.cms_id NOT IN (
-        SELECT cms_id
-        FROM example_img
-        WHERE status = 'failed'
-      )
+      SELECT 
+        commission.cms_id, 
+        commission.cms_name, 
+        commission.cms_desc, 
+        commission.cms_status,
+        IFNULL(commission.cms_all_review, 0) AS cms_all_review,
+        example_img.ex_img_path, 
+        example_img.status,
+        users.id, 
+        users.urs_name,
+        package_in_cms.pkg_id, 
+        package_in_cms.pkg_min_price,
+        COUNT(cms_order.rw_id) AS total_reviews
+      FROM 
+        commission
+      JOIN 
+        example_img ON commission.cms_id = example_img.cms_id
+      JOIN 
+        users ON commission.usr_id = users.id
+      JOIN 
+        package_in_cms ON commission.cms_id = package_in_cms.cms_id
+      LEFT JOIN
+        cms_order ON commission.cms_id = cms_order.cms_id 
+      WHERE 
+        commission.usr_id IN (?) 
+        AND commission.deleted_at IS NULL
+        AND (commission.cms_status != "similar" OR commission.cms_status IS NULL)
+        AND commission.cms_id IN (
+          SELECT cms_id
+          FROM example_img
+          WHERE status IS NOT NULL
+        )
+      GROUP BY 
+      commission.cms_id, 
+      commission.cms_name, 
+      commission.cms_desc, 
+      commission.cms_all_review,
+      commission.cms_status,
+      example_img.ex_img_path, 
+      example_img.status,
+      users.id, 
+      users.urs_name,
+      package_in_cms.pkg_id, 
+      package_in_cms.pkg_min_price
       ORDER BY commission.created_at DESC
     `;
-    // WHERE commission.usr_id IN (?) AND commission.cms_status = "pass"
     
     dbConn.query(query, [myId], function (error, results) {
       if (error) {

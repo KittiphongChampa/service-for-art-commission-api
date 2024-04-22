@@ -47,10 +47,11 @@ exports.profile = (req, res) => {
         if (error) {
           return res.json({ status: "error", message: "เข้า error" });
         } else {
+          // console.log(users);
           dbConn.query(
             "SELECT * FROM follow WHERE following_id =? ", [myId], //ค้นหาเรา
             function (error, results) {
-              console.log('ผลลัพธ์ :', results);
+              // console.log('ผลลัพธ์ :', results);
               if (error) {
                 console.error('เกิดข้อผิดพลาดในการดึงข้อมูล', error);
                 return res.json({ status: "error", message: "เข้า error" });;
@@ -95,7 +96,6 @@ exports.update_profile = (req, res) => {
         [username, bio, userId],
         function (error, result) {
           if (error) {
-            console.log("1");
             return res.json({ status: "error", message: "เข้า error" });
           } else {
             return res.json({
@@ -107,7 +107,6 @@ exports.update_profile = (req, res) => {
         }
       );
     } catch (error) {
-      console.log("2");
       return res.json({ status: "error", message: error.message });
     }
 };
@@ -116,8 +115,23 @@ exports.openFollower = (req, res) => {
   const myFollower = req.query.myFollower || '0';
     const followerIDs = myFollower.split(',').map(id => parseInt(id.trim(), 10));
   dbConn.query(
-      "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
-      [followerIDs],
+      `SELECT 
+        u.id,
+        u.urs_email, 
+        u.urs_name, 
+        u.urs_profile_img,
+        u.urs_all_review,
+        COALESCE(total_reviews, 0) AS total_reviews
+      FROM users u
+      LEFT JOIN (
+        SELECT artist_id,
+            COUNT(rw_id) AS total_reviews
+        FROM cms_order
+        WHERE artist_id IN (${followerIDs}) AND rw_id IS NOT NULL
+        GROUP BY artist_id
+      ) AS order_counts ON u.id = order_counts.artist_id
+      WHERE u.id IN (${followerIDs})
+      `,
       function(error, results){
       if (error) {
           console.error(error);
@@ -133,8 +147,22 @@ exports.openFollowing = (req, res) => {
     const iFollowing = req.query.iFollowing || '0';
     const followingIDs = iFollowing.split(',').map(id => parseInt(id.trim(), 10));
     dbConn.query(
-        "SELECT id, urs_email, urs_name, urs_profile_img FROM users WHERE id IN (?)",
-        [followingIDs],
+        `SELECT 
+          u.id,
+          u.urs_email, 
+          u.urs_name, 
+          u.urs_profile_img,
+          u.urs_all_review,
+          COALESCE(total_reviews, 0) AS total_reviews
+        FROM users u
+        LEFT JOIN (
+          SELECT artist_id,
+              COUNT(rw_id) AS total_reviews
+          FROM cms_order
+          WHERE artist_id IN (${followingIDs}) AND rw_id IS NOT NULL
+          GROUP BY artist_id
+        ) AS order_counts ON u.id = order_counts.artist_id
+        WHERE id IN (${followingIDs})`,
         function(error, results){
         if (error) {
             console.error(error);
@@ -153,7 +181,6 @@ exports.update_cover_color = (req, res) => {
       "UPDATE users SET urs_cover_color = ? WHERE id = ?",[cover_color, userId],
       function (error, results) {
         if (error) {
-          console.log("ฟังกัน update_cover_color เกิดข้อผิดพลาด");
           return res.json({ status: "error", message: "เข้า error" });
         } else {
           return res.json({
@@ -173,10 +200,13 @@ exports.update_profile_img = (req, res) => {
         return res.json({ status: "error", message: "No File Uploaded" });
       }
       const file = req.files.file;
+
       dbConn.query(
-        "SELECT * FROM users WHERE id = ?",
+        "SELECT urs_profile_img FROM users WHERE id = ?",
         [userId],
         function (error, result) {
+          console.log(result[0]);
+
           if (result[0].urs_profile_img === "") {
             var filename_random =
               __dirname.split("controllers")[0] +
@@ -205,15 +235,17 @@ exports.update_profile_img = (req, res) => {
             );
           } else {
             const new_profile = result[0].urs_profile_img.split("images/")[1];
-            var file_path =
-              __dirname.split("controllers")[0] + "/public/images/" + new_profile;
-            file.mv(file_path);
-            return res.json({ status: "ok", message: "update success" });
+            file.mv(`./public/images/${new_profile}`, async err => {
+              if (err) {
+                console.log(err);
+              } else {
+                return res.json({ status: "ok", message: "update success" });
+              }
+            })
           }
         }
       );
     } catch (error) {
-      console.log("2");
       return res.json({ status: "error", message: error.message });
     }
 };
@@ -228,7 +260,6 @@ exports.update_profile = (req, res) => {
         [username, bio, userId],
         function (error, result) {
           if (error) {
-            console.log("1");
             return res.json({ status: "error", message: "เข้า error" });
           } else {
             return res.json({
@@ -240,7 +271,6 @@ exports.update_profile = (req, res) => {
         }
       );
     } catch (error) {
-      console.log("2");
       return res.json({ status: "error", message: error.message });
     }
 };
@@ -270,14 +300,12 @@ exports.delete_account = (req, res) => {
     // let decoded = jwt.verify(token, secret_token);
     // console.log(req.body);
     const userId = req.user.userId;
-    console.log(userId);
     try {
       dbConn.query(
         "UPDATE users SET deleted_at = ? WHERE id = ?",
         [date, userId],
         function (error, results) {
           if (error) {
-            console.log("1");
             return res.json({ status: "error", message: "เข้า error" });
           } else {
             return res.json({
@@ -352,7 +380,6 @@ exports.delete_account = (req, res) => {
         [date, userId],
         function (error, results) {
           if (error) {
-            console.log("1");
             return res.json({ status: "error", message: "เข้า error" });
           } else {
             return res.json({
@@ -366,4 +393,28 @@ exports.delete_account = (req, res) => {
     } catch (err) {
       return res.json({ status: "error", message: "เข้า catch" });
     }
+};
+
+exports.getAllReview = (req, res) => {
+  const userId = req.user.userId;
+  const sql = `
+    SELECT
+      o.cms_id, u.id, u.urs_name, u.urs_profile_img,
+      rw.rw_score, rw.rw_comment, rw.created_at
+    FROM
+      cms_order o
+    JOIN
+      users u ON u.id = o.customer_id
+    JOIN
+      review rw ON rw.rw_id = o.rw_id
+    WHERE
+      o.artist_id IN (${userId})
+  `
+  dbConn.query(sql, function(error, results){
+    if (error) {
+      console.log(error);
+      return res.status(500).json({error})
+    }
+    return res.status(200).json(results)
+  })
 };

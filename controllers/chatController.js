@@ -6,7 +6,6 @@ const fs = require("fs");
 const bcrypt = require("bcrypt");
 const crypto = require("crypto");
 const saltRounds = 10;
-const multer = require('multer');
 
 
 const mysql = require('mysql2')
@@ -45,15 +44,13 @@ exports.chatPartner = (req, res) => {
 
 exports.index = (req, res) => {
     const userId = req.user.userId;
-    // const adminId = req.user.adminId;
-    // const role = req.user.role;
     try {
       dbConn.query(
         "SELECT * FROM users WHERE id=?",
         [userId],
         function (error, users) {
-          if (userId === 'undefined') {
-            return res.json({ status: "ok_butnotuser" });
+          if (error) {
+            return res.status(500).json({ status: "error", message: "status error" });
           } else if (users[0].id !== userId) {
             return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
           }
@@ -79,32 +76,68 @@ exports.allchat = (req, res) => {
     sub_query.od_id,
     sub_query.created_at AS last_message_time
   FROM (
-      SELECT 
-        users.id, 
-        users.urs_name, 
-        users.urs_profile_img,
-        messages.sender, 
-        messages.receiver, 
-        messages.message_text, 
-        IFNULL(messages.od_id, 0) AS od_id,
-        messages.created_at,
-        
-        ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
-      FROM 
-          users
-      JOIN 
-          messages ON (users.id = messages.sender OR users.id = messages.receiver)
+    SELECT 
+      users.id, 
+      users.urs_name, 
+      users.urs_profile_img,
+      messages.sender, 
+      messages.receiver, 
+      messages.message_text, 
+      IFNULL(messages.od_id, 0) AS od_id,
+      messages.created_at,
       
-      WHERE 
-          (messages.sender = ? OR messages.receiver = ?) 
-          AND users.id != ?
-          AND messages.deleted_at IS NULL
-          AND messages.od_id IS NULL
+      ROW_NUMBER() OVER (PARTITION BY CASE WHEN messages.sender = ? THEN messages.receiver ELSE messages.sender END ORDER BY messages.created_at DESC) AS rn
+    FROM 
+        users
+    JOIN 
+        messages ON (users.id = messages.sender OR users.id = messages.receiver)
+    
+    WHERE 
+        (messages.sender = ? OR messages.receiver = ?) 
+        AND users.id != ?
+        AND messages.deleted_at IS NULL
+        AND messages.od_id IS NULL
   ) AS sub_query
   WHERE rn = 1
   ORDER BY last_message_time DESC;
 
   `
+
+  const contacts_order = `
+  SELECT
+    o.od_id, o.artist_id, o.od_q_number, o.od_cancel_by, o.finished_at, o.od_current_step_id as current_step,
+    u.id, u.urs_name, u.urs_profile_img,
+    SUBSTRING_INDEX(GROUP_CONCAT(m.message_text ORDER BY m.created_at DESC), ',', 1) AS message_text,
+    MAX(m.created_at) AS last_message_time,
+    (
+        SELECT step_name 
+        FROM cms_steps 
+        WHERE current_step = cms_steps.step_id
+    ) AS current_step_name
+  FROM
+    cms_order o
+  JOIN 
+    users u ON (u.id = o.customer_id OR u.id = o.artist_id)
+  JOIN
+    messages m ON (u.id = m.sender OR u.id = m.receiver) AND o.od_id = m.od_id
+  WHERE
+    (m.sender = ? OR m.receiver = ?) 
+    AND u.id != ?
+    AND m.deleted_at IS NULL
+    AND o.artist_id IS NOT NULL
+    AND m.od_id IS NOT NULL
+  GROUP BY
+    o.od_id,
+    o.od_q_number,
+    o.od_cancel_by,
+    o.finished_at,
+    u.id,
+    u.urs_name,
+    u.urs_profile_img
+  ORDER BY
+    last_message_time DESC;
+  `
+
   const sql5 = `
   SELECT 
     sub_query.artist_id,
@@ -177,15 +210,17 @@ exports.allchat = (req, res) => {
         console.log(error);
         return res.json({ status: "error", message: "status error" });
       } 
-      dbConn.query(sql5, 
+
+      dbConn.query(contacts_order, 
         [myId, myId, myId],
         function (error, contacts_order) {
           if (error) {
             console.log(error);
             return res.json({ status: "error", message: "status error" });
           } 
-          // console.log(contacts_order);
-          return res.json({contacts, contacts_order });
+          console.log(contacts);
+          console.log(contacts_order);
+          return res.json({contacts, contacts_order});
         }
       );
     }
@@ -363,4 +398,45 @@ exports.addMessages = (req, res, next) => {
     next(ex);
   }
 
+}
+
+exports.testAllchat = (req, res) => {
+  const sql = `
+  SELECT
+    o.od_id, o.od_q_number, o.od_cancel_by, o.finished_at, o.od_current_step_id as current_step,
+    u.id AS user_id, u.urs_name, u.urs_profile_img,
+    SUBSTRING_INDEX(GROUP_CONCAT(m.message_text ORDER BY m.created_at DESC), ',', 1) AS message_text,
+    MAX(m.created_at) AS last_message_time,
+    (
+        SELECT step_name 
+        FROM cms_steps 
+        WHERE current_step = cms_steps.step_id
+    ) AS current_step_name
+  FROM
+    cms_order o
+  JOIN 
+    users u ON u.id = o.customer_id
+  JOIN
+    messages m ON m.od_id = o.od_id
+  WHERE
+    o.artist_id = ?
+  GROUP BY
+    o.od_id,
+    o.od_q_number,
+    o.od_cancel_by,
+    o.finished_at,
+    u.id,
+    u.urs_name,
+    u.urs_profile_img
+  ORDER BY
+    last_message_time DESC;
+  `
+  dbConn.query(sql, [74], function(error, results){
+    if (error){
+      console.log(error);
+      res.status(500);
+    }
+    console.log(results);
+    res.status(200).json(results)
+  })
 }

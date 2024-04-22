@@ -44,7 +44,6 @@ exports.artistOnly = (req, res, next) => {
           return res.json({ status: "error", message: "ไม่พบผู้ใช้" });
         }
         if (result[0].urs_type === undefined || result[0].urs_type !== 1) {
-          console.log("เข้า no_access");
           return res.json({
             status: "no_access",
             message: "ไม่มีสิทธิเข้าถึง",
@@ -71,13 +70,13 @@ exports.user_artisOnly = (req, res, next) => {
       "SELECT * FROM users WHERE id=?",
       [decoded.userId],
       function (error, result) {
-        console.log(result.length === 0);
-        if (result.length === 0) {
-          return res.json({
-            status: "no_access",
-            message: "ไม่มีสิทธิเข้าถึง",
-          });
-        } else if (result[0].id !== decoded.userId) {
+        // if (result.length == 0) {
+        //   return res.json({
+        //     status: "no_access",
+        //     message: "ไม่มีสิทธิเข้าถึง",
+        //   });
+        // }
+        if (result[0].id !== decoded.userId) {
           return res.json({ status: "error", message: "ไม่พบบัญชีผู้ใช้" });
         }
         if (error) {
@@ -103,7 +102,7 @@ exports.adminOnly = (req, res, next) => {
       [decoded.adminId],
       function (error, result) {
         // console.log(result.length === 0);
-        if (result.length === 0) {
+        if (result.length == 0) {
           console.log("ไม่พบผู้ใช้งาน");
           return res.json({
             status: "no_access",
