@@ -125,6 +125,7 @@ router.get("/all-id-admin", adminController.alladminIds);//ตอนนี้ไ
 router.post("/admin/noti/add", notificationController.addNotiAdmin);
 router.get("/admin/noti/getmsg", notificationController.getAdminNoti);
 router.post("/admin/delete/work/noti", notificationController.AdminDeleteWorkNoti);
+router.post("/admin/keep/work/noti", notificationController.AdminKeepWorkNoti);
 
 //user-noti
 router.get("/noti/getmsg", auth.verifyToken, notificationController.getNoti)
@@ -142,7 +143,9 @@ router.get("/get/artist/ranking", adminController.artistRank );
 
 //adminManageCms
 router.get("/allcommission", auth.verifyToken, auth.adminOnly, adminController.allCommission);
-router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
+// router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission);
+router.get("/commission/problem/:id", auth.verifyToken, auth.adminOnly, adminController.problemCommission_ver2);// version ทดลอง
+
 router.patch("/commission/problem/approve/:id", adminController.problemCommissionApprove);
 router.patch("/commission/problem/notapprove/:id", auth.verifyToken, adminController.problemCommissionNotApprove);
 

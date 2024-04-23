@@ -123,6 +123,8 @@ io.on('connection', (socket) => {
 
   // progress_step
   socket.on('progress_step', (data) => {
+    console.log(data);
+
     if (data.msg == "ภาพร่าง") {
       data.msg = "ได้ส่งภาพร่าง"
     } else if (data.msg == "ระบุราคา") {
@@ -131,6 +133,8 @@ io.on('connection', (socket) => {
       data.msg = "ได้ชำระเงินครั้งที่ 1 แล้ว"
     } else if (data.msg = "ภาพไฟนัล") {
       data.msg = "ได้ส่งภาพไฟนัล"
+    } else if (data.msg = "ตรวจสอบใบเสร็จ") {
+      data.msg = "ตรวจสอบใบเสร็จแล้ว"
     } else if (data.msg == "ตรวจสอบใบเสร็จ2") {
       data.msg = "ให้คะแนนและความคิดเห็น"
     } else if (data.msg.includes("ภาพ") && data.msg != "ภาพร่าง" && data.msg != "ภาพไฟนัล") {
@@ -222,6 +226,18 @@ io.on('connection', (socket) => {
   // แอดมินลบ cms หรือ artwork 
   socket.on("workhasdeletedByadmin", (data) => {
     console.log("workhasdeletedByadmin",data);
+    const sendUserSocket = onlineUsers.get(data.receiver_id);
+    if (sendUserSocket) {
+      socket.to(sendUserSocket).emit("getNotification",{
+        data: { ...data, created_at: nDate, },
+      });
+    } else{
+      console.log("ไม่ส่งข้อความ");
+    }
+  })
+
+  socket.on("ManageCmsSimilar", (data) => {
+    console.log("ManageCmsSimilar",data);
     const sendUserSocket = onlineUsers.get(data.receiver_id);
     if (sendUserSocket) {
       socket.to(sendUserSocket).emit("getNotification",{

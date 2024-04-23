@@ -67,7 +67,18 @@ exports.AdminDeleteWorkNoti = (req, res) => {
     `, [sender_id, receiver_id, msg, work_id], function(error, results){
         if ( error ) {
             console.log(error);
-            console.log("notiOrderAdd error");
+        }
+        return res.status(200).json({status : 'ok'})
+    })
+}
+
+exports.AdminKeepWorkNoti = (req, res) => {
+    const {sender_id, receiver_id, msg, work_id} = req.body;
+    dbConn.query(`
+        INSERT INTO notification SET sender_id=?, receiver_id=?, noti_text=?, work_id=?
+    `, [sender_id, receiver_id, msg, work_id], function(error, results){
+        if ( error ) {
+            console.log(error);
         }
         return res.status(200).json({status : 'ok'})
     })
@@ -153,6 +164,8 @@ exports.notiProgress = (req, res) => {
         message = "แจ้งเตือนการชำระเงินครั้งที่ 1"
     } else if (message == "ภาพไฟนัล") {
         message = "ได้ส่งภาพไฟนัล"
+    } else if (message == "ตรวจสอบใบเสร็จ") {
+        message = "ตรวจสอบใบเสร็จแล้ว"
     } else if (message == "ตรวจสอบใบเสร็จ2") {
         message = "ให้คะแนนและความคิดเห็น"
     } else if (message.includes("ภาพ") && message != "ภาพร่าง" && message != "ภาพไฟนัล") {
@@ -198,9 +211,10 @@ exports.notiProgressEdit = (req, res) => {
 }
 
 exports.notiReaded = (req, res) => {
-    const {report_keyData, order_keyData, action} = req.query;
+    const {report_keyData, order_keyData, work_keyData, action} = req.query;
+    console.log(req.query);
 
-    if (report_keyData  && !order_keyData) {
+    if (report_keyData  && !order_keyData && !work_keyData) {
         const sql = `
             UPDATE notification SET noti_read=? WHERE rp_id=? AND noti_text=?
         `
@@ -212,7 +226,7 @@ exports.notiReaded = (req, res) => {
             return res.status(200).json({message: "ok"})
         })
     
-    } else if (!report_keyData && order_keyData) {
+    } else if (!report_keyData && order_keyData && !work_keyData) {
         const sql = `
             UPDATE notification SET noti_read=? WHERE od_id=? AND noti_text=?
         `
@@ -223,6 +237,16 @@ exports.notiReaded = (req, res) => {
             } 
             return res.status(200).json({message: "ok"})
         })
+    } else if (work_keyData && !order_keyData && !report_keyData) {
+        const sql = `
+            UPDATE notification SET noti_read=? WHERE work_id=? AND noti_text=?
+        `
+        dbConn.query(sql, [1, work_keyData, action], function (error, results){
+            if (error) {
+                console.log(error);
+                return res.status(500).json({error})
+            } 
+            return res.status(200).json({message: "ok"})
+        })
     }
- 
 }

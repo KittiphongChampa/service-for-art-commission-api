@@ -286,22 +286,26 @@ exports.reportDetail = async(req, res) => {
         } else if (results[0].od_id !== null) {
             const sql_order_report = `
                 SELECT 
+                    o.cms_id,
                     rp.created_at,
                     img.image_name, 
                     u.id, u.urs_name, u.urs_profile_img 
                 FROM send_report rp
                 JOIN report_img img ON rp.sendrp_id = img.rp_id
                 JOIN users u ON rp.usr_reported_id = u.id
+                JOIN cms_order o ON rp.od_id = o.od_id
                 WHERE rp.od_id = ?
             `
             dbConn.query(sql_order_report, [results[0].od_id], function(error, result){
                 if (error) {
                     console.log(error);
                 }
+                console.log(result);
 
                 const reportImgData = result[0];
                 const response = {
                     work: {
+                        id: reportImgData.cms_id,
                         created_at: reportImgData.created_at,
                     },
                     artist: {

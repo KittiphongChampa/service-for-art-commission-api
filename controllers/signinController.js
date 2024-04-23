@@ -199,7 +199,12 @@ exports.login = (req, res) => {
         "SELECT * FROM admins WHERE admin_email=?",
         [email],
         function (error, admins) {
-          if (admins.length == 0) {
+          if (error) {
+            console.log(error);
+            return res.json({ status: "error", message: error });
+          }
+          // console.log("admins",admins.length);
+          if (!admins || admins.length === 0) {
             dbConn.query(
               "SELECT * FROM users WHERE urs_email=?",
               [email],
@@ -235,7 +240,7 @@ exports.login = (req, res) => {
                 );
               }
             );
-          } else if (admins){
+          } else {
             if (admins[0].deleted_at !== null) {
               return res.json({ status: "hasDelete", message: "Admin has deleted" });
             }
@@ -260,12 +265,11 @@ exports.login = (req, res) => {
                 }
               }
             );
-          }else{
-            return res.json({ status: "error", message: error });
-          }
+          } 
         }
       );
-    }catch{
+    } catch {
+      console.log(error);
       return res.json({ status: "catch", message: "เกิดข้อผิดพลาด" });
     }
 };
