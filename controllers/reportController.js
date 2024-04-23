@@ -139,7 +139,7 @@ exports.reportDetail = async(req, res) => {
     const sql = `
         SELECT 
             rp.sendrp_id, rp.sendrp_header, rp.sendrp_detail, rp.sendrp_email, rp.sendrp_link, rp.created_at, rp.cms_id, rp.artw_id, rp.od_id, rp.status,
-            u.id, u.urs_name, u.urs_profile_img
+            u.id, u.urs_name, u.urs_profile_img,u.urs_email
         FROM send_report rp
         JOIN users u ON u.id = rp.usr_reporter_id
         WHERE rp.sendrp_id = ?
@@ -154,7 +154,7 @@ exports.reportDetail = async(req, res) => {
                 SELECT
                     artwork.artw_id ,artwork.artw_desc, artwork.created_at,
                     example_img.ex_img_id, example_img.ex_img_path, 
-                    users.id, users.urs_name, users.urs_profile_img 
+                    users.id, users.urs_name, users.urs_profile_img ,users.urs_email
                 FROM artwork
                 JOIN example_img ON artwork.artw_id = example_img.artw2_id
                 JOIN users ON artwork.usr_id = users.id
@@ -199,7 +199,7 @@ exports.reportDetail = async(req, res) => {
                 const relateSQL = `
                     SELECT 
                         send_report.sendrp_id, send_report.sendrp_header, send_report.sendrp_detail, send_report.sendrp_email, send_report.sendrp_link, send_report.created_at, send_report.status,
-                        users.id, users.urs_name, users.urs_profile_img
+                        users.id, users.urs_name, users.urs_profile_img,users.urs_email
                     FROM send_report 
                     JOIN users ON users.id = send_report.usr_reporter_id
                     WHERE artw_id IN (?) AND sendrp_id != ?
@@ -220,7 +220,7 @@ exports.reportDetail = async(req, res) => {
                 SELECT 
                     commission.cms_id, commission.cms_name, commission.cms_desc, commission.created_at, commission.usr_id,
                     example_img.ex_img_id , example_img.ex_img_path, 
-                    users.id, users.urs_name, users.urs_profile_img
+                    users.id, users.urs_name, users.urs_profile_img,users.urs_email
                 FROM commission
                 JOIN example_img ON commission.cms_id = example_img.cms_id
                 JOIN users ON commission.usr_id = users.id
@@ -268,7 +268,7 @@ exports.reportDetail = async(req, res) => {
                 const relateSQL = `
                     SELECT 
                         send_report.sendrp_id, send_report.sendrp_header, send_report.sendrp_detail, send_report.sendrp_email, send_report.sendrp_link, send_report.created_at, send_report.status,
-                        users.id, users.urs_name, users.urs_profile_img
+                        users.id, users.urs_name, users.urs_profile_img,users.urs_email
                     FROM send_report 
                     JOIN users ON users.id = send_report.usr_reporter_id
                     WHERE cms_id IN (?) AND sendrp_id != ?
@@ -288,7 +288,7 @@ exports.reportDetail = async(req, res) => {
                 SELECT 
                     rp.created_at,
                     img.image_name, 
-                    u.id, u.urs_name, u.urs_profile_img 
+                    u.id, u.urs_name, u.urs_profile_img ,u.urs_email
                 FROM send_report rp
                 JOIN report_img img ON rp.sendrp_id = img.rp_id
                 JOIN users u ON rp.usr_reported_id = u.id
