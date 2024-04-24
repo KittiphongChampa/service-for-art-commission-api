@@ -259,7 +259,7 @@ exports.getTopCustomer = (req, res) => {
     WHERE artist_id = ? AND finished_at IS NOT NULL
     GROUP BY u.id, u.urs_profile_img, u.urs_name
     ORDER BY profit DESC
-    LIMIT 5 
+    LIMIT 3 
   `
   dbConn.query(sql, [userID], function (error, results) {
     if (error) {
