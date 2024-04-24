@@ -801,7 +801,7 @@ exports.getMyReq = (req, res) => {
   try {
     dbConn.query(
       `SELECT od_id,od_price , cms_name,od_cancel_by , pkg_name,cms_order.pkg_id , ordered_at, (SELECT urs_name FROM users WHERE id = cms_order.artist_id) AS artist_name,
-      (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name
+      (SELECT step_name FROM cms_steps WHERE od_current_step_id = step_id) AS step_name, cms_order.finished_at
       FROM cms_order
       JOIN commission ON commission.cms_id = cms_order.cms_id
       JOIN package_in_cms ON package_in_cms.cms_id = commission.cms_id AND cms_order.pkg_id = package_in_cms.pkg_id
